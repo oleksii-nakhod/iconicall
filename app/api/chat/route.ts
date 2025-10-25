@@ -133,26 +133,28 @@ export async function POST(req: NextRequest) {
         const refAudioBase64 = await fileToBase64(audioPath);
         const refTranscript = (await fsp.readFile(transcriptPath, 'utf-8')).trim();
 
-        const audioGenResponse = await boson.chat.completions.create({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const audioGenResponse = await (boson.chat.completions as any).create({
             model: "higgs-audio-generation-Hackathon",
             messages: [
-                { "role": "user", "content": refTranscript },
+                { role: "user", content: refTranscript },
                 {
-                    "role": "assistant",
-                    "content": [{
-                        "type": "input_audio",
-                        "input_audio": { "data": refAudioBase64, "format": "wav" }
-                    }],
+                    role: "assistant",
+                    content: [
+                        {
+                            type: "input_audio",
+                            input_audio: { data: refAudioBase64, format: "wav" },
+                        },
+                    ],
                 },
-                { "role": "user", "content": `[SPEAKER0] ${script_chunk}` },
+                { role: "user", content: `[SPEAKER0] ${script_chunk}` },
             ],
             modalities: ["text", "audio"],
             max_completion_tokens: 4096,
             temperature: 1.0,
             top_p: 0.95,
-            stream: false,
             stop: ["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
-            extra_body: { "top_k": 50 },
+            extra_body: { top_k: 50 },
         });
 
         const generatedAudioBase64 = audioGenResponse.choices?.[0]?.message?.audio?.data;
