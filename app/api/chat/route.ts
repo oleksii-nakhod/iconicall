@@ -74,6 +74,13 @@ const experts = {
         ref_transcript: 'public/ref-audio/spongebob.txt',
         personality: 'Boundless enthusiasm and childlike wonder; turns every task into a fun adventure with positivity and laughter',
     },
+    'cher': {
+        name: 'Cher',
+        description: 'Legendary American singer, actress, and cultural icon celebrated for her powerful contralto voice, fearless style, and lasting influence on pop music and fashion.',
+        ref_audio: 'public/ref-audio/cher.mp3',
+        ref_transcript: 'public/ref-audio/cher.txt',
+        personality: 'Mature, confident, and self-assured; speaks with poise and a touch of dry humor, carrying the presence of someone who’s seen it all and owns every moment.',
+    },
 };
 
 // Helper to fetch image and convert to base64
