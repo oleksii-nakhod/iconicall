@@ -170,11 +170,11 @@ export async function POST(req: NextRequest) {
             prompt: image_prompt,
             n: 1,
             size: '1024x1024',
-            quality: 'standard'
+            quality: 'low'
         });
         console.log("Image Response:", imageResponse);
-        if (!imageResponse.data || imageResponse.data.length === 0) {
-            throw new Error("Image generation failed, no images returned.");
+        if (!imageResponse.data || !imageResponse.data[0] || !imageResponse.data[0].b64_json) {
+            throw new Error("Image generation failed, no image data returned.");
         }
 
         // --------------------------------------------------
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
             expert_name: expert.name,
             script_text: script_chunk,
             audio_base64: generatedAudioBase64,
-            image_url: imageResponse.data[0].url,
+            image_base64: imageResponse.data[0].b64_json,
             conversation_history: finalHistory,
         });
 

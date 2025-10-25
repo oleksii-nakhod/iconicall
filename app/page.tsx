@@ -14,7 +14,7 @@ type ApiResponse = {
     expert_name: string;
     script_text: string;
     audio_base64: string;
-    image_url: string;
+    image_base64: string;
     conversation_history: Message[];
 };
 
@@ -61,7 +61,7 @@ export default function Home() {
 
                 const data = await response.json();
 
-                setCurrentBackground(data.image_url);
+                setCurrentBackground(`data:image/jpeg;base64,${data.image_base64}`);
                 setCurrentExpert(data.expert_name);
                 setConversation(data.conversation_history);
 
