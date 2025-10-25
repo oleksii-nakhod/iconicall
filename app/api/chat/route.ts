@@ -24,7 +24,50 @@ const experts = {
         ref_audio: 'public/ref-audio/dipper.mp3',
         ref_transcript: 'public/ref-audio/dipper.txt',
     },
+    'winston_churchill': {
+        name: 'Winston Churchill',
+        description: 'British Prime Minister during World War II, known for his inspiring speeches and leadership.',
+        ref_audio: 'public/ref-audio/churchill.mp3',
+        ref_transcript: 'public/ref-audio/churchill.txt',
+    },
+    'david_attenborough': {
+        name: 'David Attenborough',
+        description: 'Renowned natural historian and broadcaster famous for his nature documentaries.',
+        ref_audio: 'public/ref-audio/attenborough.mp3',
+        ref_transcript: 'public/ref-audio/attenborough.txt',
+    },
+    'stephen_hawking': {
+        name: 'Stephen Hawking',
+        description: 'Theoretical physicist known for his work on black holes and cosmology.',
+        ref_audio: 'public/ref-audio/hawking.mp3',
+        ref_transcript: 'public/ref-audio/hawking.txt',
+    },
+    'kung_fu_panda': {
+        name: 'Po',
+        description: 'Po, the enthusiastic and food-loving panda who becomes the Dragon Warrior.',
+        ref_audio: 'public/ref-audio/kungfupanda.mp3',
+        ref_transcript: 'public/ref-audio/kungfupanda.txt',
+    },
+    'martin_luther': {
+        name: 'Martin Luther',
+        description: 'German theologian who initiated the Protestant Reformation.',
+        ref_audio: 'public/ref-audio/martinluther.mp3',
+        ref_transcript: 'public/ref-audio/martinluther.txt',
+    },
+    'j_robert_oppenheimer': {
+        name: 'Oppenheimer',
+        description: 'Theoretical physicist often called the “father of the atomic bomb.”',
+        ref_audio: 'public/ref-audio/oppenheimer.mp3',
+        ref_transcript: 'public/ref-audio/oppenheimer.txt',
+    },
+    'spongebob_squarepants': {
+        name: 'SpongeBob SquarePants',
+        description: 'Optimistic and energetic sea sponge who lives in a pineapple under the sea.',
+        ref_audio: 'public/ref-audio/spongebob.mp3',
+        ref_transcript: 'public/ref-audio/spongebob.txt',
+    },
 };
+
 
 export async function POST(req: NextRequest) {
     try {
