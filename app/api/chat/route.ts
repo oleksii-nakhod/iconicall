@@ -3,7 +3,7 @@ import { getBosonClient, getOpenAIClient } from '@/lib/api-clients';
 import { promises as fsp } from "fs";
 import fs from "fs";
 import path from 'path';
-import { ReadStream } from 'fs';
+// import { ReadStream } from 'fs';
 
 // Helper function to encode files for APIs
 async function fileToBase64(filePath: string): Promise<string> {
