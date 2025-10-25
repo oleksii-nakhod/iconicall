@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useRef, useEffect } from 'react';
 import { RecordButton } from '@/components/RecordButton';
 
@@ -8,63 +7,47 @@ type Message = {
     content: string;
 };
 
-type AnimationFrame = {
-    image_base64: string;
-    duration: number;
+type StoryState = {
+    book_title?: string;
+    narrator_name?: string;
 };
 
 export default function Home() {
     const [isLoading, setIsLoading] = useState(false);
-    const [currentExpert, setCurrentExpert] = useState<string>('Expert');
+    const [bookTitle, setBookTitle] = useState<string>('');
+    const [narratorName, setNarratorName] = useState<string>('Narrator');
+    const [currentChapter, setCurrentChapter] = useState<string>('');
     const [conversation, setConversation] = useState<Message[]>([]);
+    const [storyState, setStoryState] = useState<StoryState>({});
     
-    // Animation state
-    const [animationFrames, setAnimationFrames] = useState<AnimationFrame[]>([]);
-    const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
-    const [isAnimating, setIsAnimating] = useState(false);
+    // Scene state
+    const [currentScene, setCurrentScene] = useState<string>('');
+    const [currentImage, setCurrentImage] = useState<string>('');
+    const [choices, setChoices] = useState<string[]>([]);
+    const [loadingProgress, setLoadingProgress] = useState<string>('');
+    const [isFirstLoad, setIsFirstLoad] = useState(true);
+    const [performanceData, setPerformanceData] = useState<any>(null);
 
     const audioPlayer = useRef<HTMLAudioElement | null>(null);
-    const animationTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Animation player
-    useEffect(() => {
-        if (!isAnimating || animationFrames.length === 0) return;
-
-        const currentFrame = animationFrames[currentFrameIndex];
-        if (!currentFrame) {
-            setIsAnimating(false);
-            return;
-        }
-
-        // Show frame for its duration, then move to next
-        animationTimerRef.current = setTimeout(() => {
-            if (currentFrameIndex < animationFrames.length - 1) {
-                setCurrentFrameIndex(prev => prev + 1);
-            } else {
-                // Loop back to first frame
-                setCurrentFrameIndex(0);
-            }
-        }, currentFrame.duration * 1000);
-
-        return () => {
-            if (animationTimerRef.current) {
-                clearTimeout(animationTimerRef.current);
-            }
-        };
-    }, [isAnimating, currentFrameIndex, animationFrames]);
 
     const handleAudioStop = async (audioBlob: Blob) => {
         setIsLoading(true);
+        setLoadingProgress('🎤 Listening...');
+        
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
             const base64Full = reader.result?.toString();
             if (!base64Full) return setIsLoading(false);
+
             const [header, base64Data] = base64Full.split(',');
             const mime = header.match(/:(.*?);/)?.[1] || 'audio/webm';
             const format = mime.split('/')[1];
 
             try {
+                setLoadingProgress(isFirstLoad ? '📚 Finding your book...' : '🎨 Creating scene...');
+                
+                const startTime = Date.now();
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -72,6 +55,7 @@ export default function Home() {
                         audio_base64: base64Data,
                         audio_format: format,
                         conversation_history: conversation,
+                        story_state: storyState,
                     }),
                 });
                 
@@ -80,166 +64,231 @@ export default function Home() {
                 }
                 
                 const data = await res.json();
+                const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                console.log(`⚡ Scene generated in ${elapsedTime}s`);
+                
+                // Store performance data
+                if (data.performance) {
+                    setPerformanceData(data.performance);
+                    console.log('📊 Performance Breakdown:', data.performance);
+                }
 
-                // Handle response (works with both single image and animation frames)
-                if (data.error && !data.image_base64 && !data.animation_frames) {
-                    alert(data.error || 'Generation failed. Try rephrasing your question.');
+                if (data.error) {
+                    alert(data.error || 'Generation failed. Try again.');
                     setIsLoading(false);
+                    setLoadingProgress('');
                     return;
                 }
 
-                if (!data.conversation_history) {
-                    console.error('Invalid response data:', data);
-                    throw new Error('Invalid response from API');
-                }
-
-                // Handle animation frames OR single image
-                if (data.animation_frames && data.animation_frames.length > 0) {
-                    setAnimationFrames(data.animation_frames);
-                    setCurrentFrameIndex(0);
-                    setIsAnimating(true);
-                } else if (data.image_base64) {
-                    // Single image - create a single-frame "animation"
-                    setAnimationFrames([{ image_base64: data.image_base64, duration: 999 }]);
-                    setCurrentFrameIndex(0);
-                    setIsAnimating(false); // Don't animate single frame
-                } else {
-                    console.warn('No images available');
-                    setIsAnimating(false);
-                }
-
-                setCurrentExpert(data.expert_name || 'Expert');
+                // Update story state
+                if (data.book_title) setBookTitle(data.book_title);
+                if (data.narrator_name) setNarratorName(data.narrator_name);
+                if (data.current_chapter) setCurrentChapter(data.current_chapter);
+                setStoryState(data.story_state);
                 setConversation(data.conversation_history);
+                setCurrentScene(data.scene_text);
+                setChoices(data.choices || []);
+                setIsFirstLoad(false);
 
-                // Play audio
+                // Update scene image
+                if (data.scene_image?.image_base64) {
+                    setCurrentImage(data.scene_image.image_base64);
+                }
+
+                // Play narration audio
                 if (audioPlayer.current && data.audio_base64) {
                     try {
                         audioPlayer.current.src = `data:audio/wav;base64,${data.audio_base64}`;
                         await audioPlayer.current.play();
-                        
-                        // Stop animation when audio ends
-                        audioPlayer.current.onended = () => {
-                            setIsAnimating(false);
-                            // Keep showing last frame
-                            setCurrentFrameIndex(data.animation_frames.length - 1);
-                        };
                     } catch (audioError) {
                         console.error('Audio playback error:', audioError);
                     }
                 }
+
+                setLoadingProgress('');
             } catch (e) {
-                console.error('Error in handleAudioStop:', e);
-                alert('Sorry, there was an error processing your request. Please try again.');
+                console.error('Error:', e);
+                alert('Sorry, there was an error. Please try again.');
+                setLoadingProgress('');
             } finally {
                 setIsLoading(false);
             }
         };
     };
 
-    const currentFrameImage = animationFrames[currentFrameIndex]?.image_base64;
-    const fallbackImage = 'https://img.freepik.com/free-photo/plain-smooth-green-wall-texture_53876-129746.jpg';
+    const handleChoiceClick = async (choice: string) => {
+        if (isLoading) return;
+
+        setIsLoading(true);
+        setLoadingProgress('🎬 Processing your choice...');
+
+        try {
+            const startTime = Date.now();
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text_input: choice, // Send as text_input instead of audio_base64
+                    conversation_history: conversation,
+                    story_state: storyState,
+                }),
+            });
+
+            if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+            const data = await res.json();
+            const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`⚡ Next scene in ${elapsedTime}s`);
+            
+            // Store performance data
+            if (data.performance) {
+                setPerformanceData(data.performance);
+                console.log('📊 Performance Breakdown:', data.performance);
+            }
+
+            if (data.error) {
+                alert(data.error);
+                setIsLoading(false);
+                setLoadingProgress('');
+                return;
+            }
+
+            setStoryState(data.story_state);
+            setConversation(data.conversation_history);
+            setCurrentScene(data.scene_text);
+            setChoices(data.choices || []);
+            if (data.current_chapter) setCurrentChapter(data.current_chapter);
+
+            if (data.scene_image?.image_base64) {
+                setCurrentImage(data.scene_image.image_base64);
+            }
+
+            if (audioPlayer.current && data.audio_base64) {
+                try {
+                    audioPlayer.current.src = `data:audio/wav;base64,${data.audio_base64}`;
+                    await audioPlayer.current.play();
+                } catch (audioError) {
+                    console.error('Audio playback error:', audioError);
+                }
+            }
+
+            setLoadingProgress('');
+        } catch (e) {
+            console.error('Error:', e);
+            alert('Error processing choice. Try again.');
+            setLoadingProgress('');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fallbackImage = 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1200';
 
     return (
-        <main className="h-screen w-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#0A0A0F] via-[#0F1A2A] to-[#06131F] relative overflow-hidden">
+        <main className="h-screen w-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#0A0A0F] via-[#1A0F2A] to-[#0F061A] relative overflow-hidden">
+            {/* Magical background orbs */}
+            <div className="absolute -top-32 -left-20 w-96 h-96 bg-purple-500 blur-[200px] opacity-20 rounded-full" />
+            <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-pink-600 blur-[200px] opacity-20 rounded-full" />
 
-            {/* Glowing background orbs */}
-            <div className="absolute -top-32 -left-20 w-96 h-96 bg-teal-500 blur-[200px] opacity-30 rounded-full" />
-            <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-purple-600 blur-[200px] opacity-30 rounded-full" />
+            {/* Book Title Header */}
+            {bookTitle && (
+                <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 text-center">
+                    <h1 className="text-3xl font-bold text-white/90 tracking-wide">
+                        📖 {bookTitle}
+                    </h1>
+                    <p className="text-sm text-white/50 mt-1">
+                        Narrated by {narratorName}
+                    </p>
+                    {currentChapter && (
+                        <p className="text-xs text-white/40 mt-1 italic">
+                            {currentChapter}
+                        </p>
+                    )}
+                </div>
+            )}
 
-            {/* Video Window with Animation */}
-            <div className="relative w-full max-w-4xl h-[55vh] rounded-[30px] shadow-[0_0_60px_rgba(0,0,0,0.6)] overflow-hidden transition-all">
+            {/* Scene Window */}
+            <div className="relative w-full max-w-5xl h-[60vh] rounded-[30px] shadow-[0_0_60px_rgba(0,0,0,0.8)] overflow-hidden border-4 border-white/10">
                 
-                {/* Animated Background */}
+                {/* Scene Image with Smooth Transitions */}
                 <div
-                    className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                    className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
                     style={{ 
-                        backgroundImage: `url(${currentFrameImage ? `data:image/jpeg;base64,${currentFrameImage}` : fallbackImage})` 
+                        backgroundImage: `url(${currentImage ? `data:image/jpeg;base64,${currentImage}` : fallbackImage})`,
+                        filter: isLoading ? 'blur(8px) brightness(0.7)' : 'none'
                     }}
                 />
 
-                {/* Frosted Glass Overlay */}
-                <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px] flex flex-col justify-between p-6">
+                {/* Gradient Overlay for Text Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                    {/* Expert Name & Animation Status */}
-                    <div className="flex items-center gap-3">
-                        <span className="bg-black/50 px-5 py-2 text-lg rounded-full font-semibold backdrop-blur-md border border-white/20 shadow-lg">
-                            {isLoading ? 'Processing...' : currentExpert}
-                        </span>
-                        
-                        {isAnimating && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-white/70">
-                                    🎬 Frame {currentFrameIndex + 1}/{animationFrames.length}
-                                </span>
-                                <div className="flex gap-1">
-                                    {animationFrames.map((_, idx) => (
-                                        <div
-                                            key={idx}
-                                            className={`w-2 h-2 rounded-full transition-all ${
-                                                idx === currentFrameIndex 
-                                                    ? 'bg-white scale-125' 
-                                                    : idx < currentFrameIndex 
-                                                        ? 'bg-white/50' 
-                                                        : 'bg-white/20'
-                                            }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Bottom animation loader */}
+                {/* Scene Content */}
+                <div className="absolute inset-0 flex flex-col justify-between p-8">
+                    {/* Loading Indicator */}
                     {isLoading && (
-                        <div className="flex justify-center pb-4">
-                            <div className="flex gap-2">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                            <div className="flex gap-2 justify-center mb-4">
                                 {[1, 2, 3].map((i) => (
                                     <span
                                         key={i}
-                                        className="w-3 h-3 bg-white rounded-full animate-bounce"
-                                        style={{ animationDelay: `${i * 0.1}s` }}
-                                    ></span>
+                                        className="w-4 h-4 bg-white rounded-full animate-bounce"
+                                        style={{ animationDelay: `${i * 0.15}s` }}
+                                    />
                                 ))}
                             </div>
+                            <p className="text-white/90 text-lg font-medium">{loadingProgress}</p>
+                        </div>
+                    )}
+
+                    {/* Welcome Message */}
+                    {!currentScene && !isLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center text-center">
+                            <div className="bg-black/60 backdrop-blur-xl rounded-3xl p-12 max-w-2xl border border-white/20">
+                                <h2 className="text-4xl font-bold text-white mb-4">
+                                    📚 Live the Book
+                                </h2>
+                                <p className="text-xl text-white/80 mb-6">
+                                    Speak the name of any book and step into its story.
+                                </p>
+                                <p className="text-white/60">
+                                    You'll make choices that shape the adventure as scenes come to life before your eyes.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Current Scene Text */}
+                    {currentScene && !isLoading && (
+                        <div className="mt-auto bg-black/70 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
+                            <p className="text-lg text-white leading-relaxed">
+                                {currentScene}
+                            </p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Chat History */}
-            <div className="w-full max-w-4xl max-h-56 overflow-y-auto mt-5 rounded-xl p-4 bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl">
-                {!conversation || conversation.length === 0 ? (
-                    <p className="text-center text-white/50 text-sm italic">
-                        🎙️ Press record and ask your question to start!
-                    </p>
-                ) : (
-                    conversation.map((msg, i) => (
-                        <div
-                            key={i}
-                            className={`mb-3 p-3 max-w-[80%] rounded-2xl border backdrop-blur-sm transition-all hover:scale-[1.02]
-                            ${msg.role === 'user'
-                                ? 'ml-auto bg-gradient-to-r from-[#004DFF]/40 to-[#00E1FF]/40 border-[#00C2FF]/30 shadow-[0_0_15px_rgba(0,194,255,0.3)]'
-                                : 'mr-auto bg-gradient-to-r from-[#6D28D9]/40 to-[#A855F7]/40 border-purple-400/30 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                            }`}
+            {/* Choice Buttons */}
+            {choices.length > 0 && !isLoading && (
+                <div className="w-full max-w-5xl mt-6 flex gap-4 justify-center flex-wrap">
+                    {choices.map((choice, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleChoiceClick(choice)}
+                            className="cursor-pointer px-6 py-4 bg-gradient-to-r from-purple-600/80 to-pink-600/80 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] backdrop-blur-sm border border-white/20 min-w-[200px]"
                         >
-                            <p className="text-sm leading-relaxed">
-                                {msg.role === 'assistant' && '🎓 '}
-                                {msg.role === 'user' && '👤 '}
-                                {msg.content}
-                            </p>
-                        </div>
-                    ))
-                )}
-            </div>
+                            {choice}
+                        </button>
+                    ))}
+                </div>
+            )}
 
-            {/* Controls */}
+            {/* Voice Input Button */}
             <div className="mt-8 relative">
                 <RecordButton onStop={handleAudioStop} disabled={isLoading} />
-                {isLoading && (
-                    <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-white/50 whitespace-nowrap">
-                        Generating animation...
-                    </p>
-                )}
+                <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-white/40 whitespace-nowrap">
+                    {isFirstLoad ? '🎙️ Tell a book title to begin' : '🎙️ Or speak your choice'}
+                </p>
             </div>
 
             <audio 
