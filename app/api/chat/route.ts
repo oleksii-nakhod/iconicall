@@ -5,10 +5,6 @@ import fs from "fs";
 import path from 'path';
 import { ReadStream } from 'fs';
 
-// Initialize API Clients
-const boson = getBosonClient();
-const openai = getOpenAIClient();
-
 // Helper function to encode files for APIs
 async function fileToBase64(filePath: string): Promise<string> {
     const fileBuffer = await fsp.readFile(filePath);
@@ -33,6 +29,10 @@ const experts = {
 export async function POST(req: NextRequest) {
     try {
         const { audio_base64, audio_format, conversation_history } = await req.json();
+
+        // Initialize API Clients
+        const boson = getBosonClient();
+        const openai = getOpenAIClient();
 
         // --------------------------------------------------
         // STEP 1: Speech-to-Text (User's topic)
