@@ -12,7 +12,7 @@ export const RecordButton = ({ onStop, disabled }: Props) => {
     const mediaRecorder = useRef<MediaRecorder | null>(null);
     const audioChunks = useRef<Blob[]>([]);
     const recordingStartTime = useRef<number>(0);
-    const MIN_RECORDING_DURATION = 2000;
+    const MIN_RECORDING_DURATION = 750;
 
     const startRecording = async () => {
         if (disabled) return;
