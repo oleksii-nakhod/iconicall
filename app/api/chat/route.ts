@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
         // Add the assistant's response to the history for the *next* turn
         const finalHistory = [
             ...newHistory,
-            { role: 'assistant', content: script_chunk }
+            { role: expert.name, content: script_chunk }
         ];
 
         return NextResponse.json({

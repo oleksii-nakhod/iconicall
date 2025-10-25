@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { RecordButton } from '@/components/RecordButton';
 
 // Type for a single message in our history
 type Message = {
-    role: 'user' | 'assistant';
+    role: string;
     content: string;
 };
 
