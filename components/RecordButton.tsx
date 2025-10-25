@@ -11,6 +11,8 @@ export const RecordButton = ({ onStop, disabled }: Props) => {
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorder = useRef<MediaRecorder | null>(null);
     const audioChunks = useRef<Blob[]>([]);
+    const recordingStartTime = useRef<number>(0);
+    const MIN_RECORDING_DURATION = 2000;
 
     const startRecording = async () => {
         if (disabled) return;
@@ -23,12 +25,20 @@ export const RecordButton = ({ onStop, disabled }: Props) => {
             };
 
             mediaRecorder.current.onstop = () => {
-                const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
-                onStop(audioBlob);
+                const recordingDuration = Date.now() - recordingStartTime.current;
+                
+                if (recordingDuration >= MIN_RECORDING_DURATION) {
+                    const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+                    onStop(audioBlob);
+                } else {
+                    console.log('Recording too short, discarding...');
+                }
+                
                 audioChunks.current = [];
             };
 
             mediaRecorder.current.start();
+            recordingStartTime.current = Date.now();
             setIsRecording(true);
         } catch (error) {
             console.error('Error accessing microphone:', error);
@@ -40,7 +50,6 @@ export const RecordButton = ({ onStop, disabled }: Props) => {
         if (mediaRecorder.current) {
             mediaRecorder.current.stop();
             mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
-
             setIsRecording(false);
         }
     };
