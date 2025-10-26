@@ -151,60 +151,66 @@ export async function POST(req: NextRequest) {
         let scriptPrompt: string;
         
         if (isFirstInteraction) {
-            // Determine if this is a book request or a learning topic
-            scriptPrompt = `You are an AI that creates interactive experiences - either bringing books to life OR teaching topics through engaging narration.
+            scriptPrompt = `You are an AI that creates interactive audio-visual experiences with expert narrators.
 
 User said: "${userInput}"
 
 Available Narrators (USE EXACT NAMES):
-${Object.values(narrators).map(n => `- "${n.name}": ${n.description} (Expertise: ${n.expertise.join(', ')})`).join('\n')}
+${Object.values(narrators).map(n => `- "${n.name}": ${n.description} | Personality: ${n.personality}`).join('\n')}
 
-TASK: Determine if this is a BOOK REQUEST or a LEARNING TOPIC REQUEST.
+YOUR TASK:
+1. Understand what the user wants to experience
+2. Choose the narrator whose personality best fits this experience
+3. Create an engaging introduction with 3 interactive choices
 
-IF BOOK (e.g., "Harry Potter", "The Great Gatsby"):
-- Extract the book title
-- Choose narrator that fits the book's genre
-- Start at the CANONICAL BEGINNING of the story
-- Create opening scene with 2-3 choices aligned with plot points
+EXAMPLES OF WHAT USERS MIGHT REQUEST:
+- Fictional stories ("Harry Potter", "1984")
+- Educational topics ("black holes", "cooking pasta", "photosynthesis")
+- Historical scenarios ("debate between Einstein and Newton")
+- Imaginative experiences ("tour of ancient Rome")
+- Skill learning ("how to meditate", "martial arts basics")
+- ANY other interactive experience
 
-IF LEARNING TOPIC (e.g., "quantum physics", "how black holes work", "photosynthesis"):
-- Identify the topic
-- Choose the expert narrator most qualified for this subject
-- Create an engaging introduction to the topic
-- Provide 2-3 choices for learning directions (deeper dive, related topic, practical example)
+NARRATOR SELECTION:
+- Match personality to the experience
+- Consider who would make it most engaging
+- Examples:
+  * Physics topic → Stephen Hawking or Einstein
+  * Cooking → Cher (confident) or SpongeBob (enthusiastic)
+  * Mystery story → Dipper Pines
+  * Nature → David Attenborough
+  * Philosophy/debate → Einstein, Oppenheimer, or Martin Luther
+  * Martial arts → Po
 
 Return JSON:
 {
   "content_type": "book" or "learning",
-  "narrator_name": "EXACT NAME from the list above (copy it exactly with correct capitalization)",
-  "book_title": "book title" OR "Learning: [Topic Name]",
-  "plot_summary": "brief summary of book plot OR key concepts to cover in this topic",
-  "current_chapter": "chapter name OR topic section (e.g., 'Introduction to Quantum Physics')",
-  "scene_text": "immersive narration (2-3 sentences) ending with a prompt for choices",
+  "narrator_name": "EXACT NAME from list",
+  "experience_title": "Short descriptive title of this experience",
+  "experience_summary": "Brief overview of what this experience will cover",
+  "current_section": "Current section/chapter/part",
+  "narration": "Engaging narration (2-3 sentences) ending with a prompt for choices",
   "choices": ["Choice 1", "Choice 2", "Choice 3"],
-  "scene_image": {
-    "description": "detailed scene description",
+  "visual": {
+    "description": "Detailed visual description for image generation",
     "duration": 8.0
   }
 }
 
-CRITICAL: The narrator_name field MUST be copied EXACTLY from the list above. For example:
-- "Stephen Hawking" (correct)
-- "stephen hawking" (WRONG - incorrect capitalization)
-- "Albert Einstein" (correct)
-- "Einstein" (WRONG - incomplete name)
+CRITICAL: narrator_name must be EXACTLY as shown (correct capitalization, full name).
 
-IMPORTANT: 
-- For books: Stay true to source material
-- For learning: Make it engaging, use analogies, relate to real life
-- Match narrator personality to content
-- Keep explanations clear and fun
+GUIDELINES:
+- For stories: Stay true to source material, start at beginning
+- For topics: Make engaging with analogies, use narrator's personality
+- For debates/scenarios: Set up the situation immersively
+- Provide meaningful choices that advance the experience
+- Keep narration concise and compelling
 
-Image requirements:
-- Books: Cinematic illustration of the scene
-- Learning: Visual representation of the concept (diagrams, illustrations, metaphors)
-- Style: "educational illustration, detailed, engaging, clear" for learning OR "cinematic book illustration" for stories
-- Keep under 150 characters`;
+Visual requirements:
+- Stories: "cinematic illustration, detailed art, atmospheric"
+- Topics: "educational illustration, clear visual, engaging"
+- Scenarios: Match the setting appropriately
+- Keep description under 150 characters`;
         } else {
             const recentHistory = (conversation_history || []).slice(-4).map((m: any) =>
                 `${m.role === 'user' ? '👤 User' : '📖 Narrator'}: ${m.content}`
@@ -213,37 +219,53 @@ Image requirements:
             const contentType = story_state.content_type || 'book';
             
             if (contentType === 'learning') {
-                scriptPrompt = `You are continuing an interactive LEARNING experience about "${story_state.book_title}".
+                scriptPrompt = `You are continuing an interactive LEARNING experience.
 
+Topic: "${story_state.book_title}"
 Key Concepts: ${story_state.plot_summary || 'Educational content'}
 Current Section: ${story_state.current_chapter || 'Introduction'}
-Expert: ${story_state.narrator_name}
+Narrator: ${story_state.narrator_name}
 
 Recent Conversation:
 ${recentHistory}
 
 User's Choice: "${userInput}"
 
-Continue the learning experience:
+YOUR TASK:
+Continue the learning journey in the narrator's unique style:
 1. Acknowledge their choice
-2. Explain the concept clearly using analogies and examples
+2. Explain the concept clearly using the narrator's personality
+   - Use analogies, examples, stories that fit their voice
+   - Make it engaging and memorable
 3. Build on previous knowledge
-4. Provide 2-3 new choices (deeper dive, new angle, related topic)
-5. Keep it engaging and interactive
+4. Provide 2-3 new choices for the next learning step
+
+CHOICE IDEAS (adapt to topic):
+- Dive deeper into a specific aspect
+- Explore how this relates to something else
+- See a practical/real-world example
+- Learn the history/background
+- Understand why it matters
+- Compare different approaches/perspectives
 
 Return JSON:
 {
-  "current_chapter": "Updated section/concept description",
-  "scene_text": "clear, engaging explanation (2-3 sentences) with choice prompt",
-  "choices": ["Learn more about X", "How does this relate to Y?", "Show me a real example"],
+  "current_chapter": "Updated section/concept",
+  "scene_text": "engaging explanation (2-3 sentences) in narrator's voice, end with choice prompt",
+  "choices": ["Specific choice 1", "Specific choice 2", "Specific choice 3"],
   "scene_image": {
-    "description": "visual representation of this concept",
+    "description": "clear visual representation of this concept",
     "duration": 8.0
   }
 }
 
-Image: Educational illustration showing the concept clearly
-Style: "educational diagram, clear illustration, engaging visual metaphor"`;
+IMPORTANT: 
+- Stay in character with the narrator's personality
+- Make learning fun and interactive
+- Adapt to ANY topic (science, cooking, history, art, sports, etc.)
+- Keep explanations clear but engaging
+
+Image: "educational illustration, clear visual, informative and engaging"`;
             } else {
                 scriptPrompt = `You are continuing an interactive STORY from "${story_state.book_title}".
 
