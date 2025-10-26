@@ -55,8 +55,8 @@ export const RecordButton = ({ onStop, disabled }: Props) => {
     };
 
     const buttonClass = isRecording
-        ? 'bg-red-600 hover:bg-red-700'
-        : 'bg-blue-600 hover:bg-blue-700';
+    ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500'
+    : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500';
 
     return (
         <button

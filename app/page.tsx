@@ -260,140 +260,161 @@ export default function Home() {
     const displayLines = getDisplayLines();
 
     return (
-        <main className="h-screen w-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#0A0A0F] via-[#1A0F2A] to-[#0F061A] relative overflow-hidden">
+        <main className="h-screen w-full flex flex-col bg-gradient-to-br from-[#0A0A0F] via-[#1A0F2A] to-[#0F061A] relative overflow-hidden">
             {/* Magical background orbs */}
             <div className="absolute -top-32 -left-20 w-96 h-96 bg-purple-500 blur-[200px] opacity-20 rounded-full" />
             <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-pink-600 blur-[200px] opacity-20 rounded-full" />
 
-            {/* Logo - Top Right */}
-            <div className="absolute top-8 right-8 z-20">
-                <img 
-                    src="/logo.png" 
-                    alt="Logo" 
-                    className="h-20 md:h-28 w-auto object-contain" 
-                />
-            </div>
-            
-            {/* Restart Button - Top Right (below logo) */}
-            {!isFirstLoad && (
-                <button
-                    onClick={handleRestart}
-                    disabled={isLoading}
-                    className="absolute top-28 right-8 z-20 px-6 py-3 bg-gradient-to-r from-red-600/80 to-orange-600/80 hover:from-red-500 hover:to-orange-500 rounded-xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(239,68,68,0.6)] backdrop-blur-sm border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                    <span className="text-xl">🔄</span>
-                    <span>New Story</span>
-                </button>
-            )}
+            {/* Top Bar */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-start p-6">
+                {/* Logo - Top Left */}
+                <div>
+                    <img
+                        src="/logo.png"
+                        alt="Logo"
+                        className="h-16 md:h-20 w-auto object-contain"
+                    />
+                </div>
 
-            {/* Book Title Header */}
-            {bookTitle && (
-                <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 text-center">
-                    <h1 className="text-3xl font-bold text-white/90 tracking-wide">
-                        {bookTitle}
-                    </h1>
-                    <p className="text-sm text-white/50 mt-1">
-                        {storyState.content_type === 'learning' ? 'Explained by' : 'Narrated by'} {narratorName}
-                    </p>
-                    {currentChapter && (
-                        <p className="text-xs text-white/40 mt-1 italic">
-                            {currentChapter}
+                {/* Book Title - Top Center */}
+                {bookTitle && (
+                    <div className="text-center flex-1 px-8">
+                        <h1 className="text-2xl md:text-3xl font-bold text-white/90 tracking-wide">
+                            {bookTitle}
+                        </h1>
+                        <p className="text-sm text-white/50 mt-1">
+                            {storyState.content_type === 'learning' ? 'Explained by' : 'Narrated by'} {narratorName}
                         </p>
-                    )}
-                </div>
-            )}
+                        {currentChapter && (
+                            <p className="text-xs text-white/40 mt-1 italic">
+                                {currentChapter}
+                            </p>
+                        )}
+                    </div>
+                )}
 
-            {/* Scene Window */}
-            <div className="relative w-full max-w-5xl h-[60vh] rounded-[30px] shadow-[0_0_60px_rgba(0,0,0,0.8)] overflow-hidden border-4 border-white/10">
-                
-                {/* Scene Image with Smooth Transitions */}
-                <div
-                    className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
-                    style={{ 
-                        backgroundImage: `url(${currentImage ? `data:image/jpeg;base64,${currentImage}` : fallbackImage})`,
-                        filter: isLoading ? 'blur(8px) brightness(0.7)' : 'none'
-                    }}
-                />
+                {/* Restart Button - Top Right */}
+                {!isFirstLoad && (
+                    <button
+                        onClick={handleRestart}
+                        disabled={isLoading}
+                        className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-sm border border-white/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <span className="text-lg">🔄</span>
+                        <span>Restart</span>
+                    </button>
+                )}
+            </div>
 
-                {/* Gradient Overlay for Text Readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            {/* Main Content Area */}
+            <div className="flex-1 flex items-center justify-center p-6 pt-24">
+                <div className="w-full max-w-7xl h-full flex gap-6">
 
-                {/* Scene Content */}
-                <div className="absolute inset-0 flex flex-col justify-between p-8">
-                    {/* Loading Indicator */}
-                    {isLoading && (
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-                            <div className="flex gap-2 justify-center mb-4">
-                                {[1, 2, 3].map((i) => (
-                                    <span
-                                        key={i}
-                                        className="w-4 h-4 bg-white rounded-full animate-bounce"
-                                        style={{ animationDelay: `${i * 0.15}s` }}
-                                    />
-                                ))}
-                            </div>
-                            <p className="text-white/90 text-lg font-medium">{loadingProgress}</p>
-                        </div>
-                    )}
+                    {/* Left: Scene Image + Dialogue */}
+                    <div className="flex-1 flex flex-col gap-4 h-full">
+                        {/* Scene Image - Bigger */}
+                        <div className="relative flex-1 rounded-3xl shadow-[0_0_60px_rgba(0,0,0,0.8)] overflow-hidden border-2 border-white/10">
+                            <div
+                                className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
+                                style={{
+                                    backgroundImage: `url(${currentImage ? `data:image/jpeg;base64,${currentImage}` : fallbackImage})`,
+                                    filter: isLoading ? 'blur(8px) brightness(0.7)' : 'none'
+                                }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                    {/* Welcome Message */}
-                    {!currentScene && !isLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center text-center">
-                            <div className="bg-black/60 backdrop-blur-xl rounded-3xl p-12 max-w-2xl border border-white/20">
-                                <h2 className="text-4xl font-bold text-white mb-4">
-                                    🎭 Learn Anything, Live Any Story
-                                </h2>
-                                <p className="text-xl text-white/80 mb-6">
-                                    Speak a book title to experience its story, or ask about any topic to learn from an expert.
-                                </p>
-                                <div className="text-white/60 space-y-2">
-                                    <p>📚 <span className="text-white/80">Books:</span> "Harry Potter" • "1984" • "The Hobbit"</p>
-                                    <p>🎓 <span className="text-white/80">Topics:</span> "How do black holes work?" • "Explain quantum physics" • "What is photosynthesis?"</p>
+                            {/* Loading Indicator */}
+                            {isLoading && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-10">
+                                    <div className="flex gap-2 justify-center mb-4">
+                                        {[1, 2, 3].map((i) => (
+                                            <span
+                                                key={i}
+                                                className="w-4 h-4 bg-white rounded-full animate-bounce"
+                                                style={{ animationDelay: `${i * 0.15}s` }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className="text-white/90 text-lg font-medium">{loadingProgress}</p>
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            )}
 
-                    {/* Current Scene Text */}
-                    {displayLines.length > 0 && !isLoading && (
-                        <div className="mt-auto bg-black/70 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
-                            <div className="space-y-2">
-                                {displayLines.map((line, idx) => (
-                                    <p
-                                        key={idx}
-                                        className="text-lg leading-relaxed whitespace-pre-wrap"
-                                        style={{ color: line.color }}
-                                    >
-                                        {line.speakerName && <strong>{line.speakerName}: </strong>}
-                                        {line.text}
-                                    </p>
-                                ))}
-                            </div>
+                            {/* Welcome Message */}
+                            {!currentScene && !isLoading && (
+                                <div className="absolute inset-0 flex items-center justify-center text-center p-8">
+                                    <div className="bg-black/60 backdrop-blur-xl rounded-3xl p-10 max-w-xl border border-white/20">
+                                        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                                            🎭 Learn Anything, Live Any Story
+                                        </h2>
+                                        <p className="text-lg md:text-xl text-white/80 mb-6">
+                                            Speak a book title to experience its story, or ask about any topic to learn from an expert.
+                                        </p>
+                                        <div className="text-white/60 space-y-2 text-sm">
+                                            <p>📚 <span className="text-white/80">Books:</span> Harry Potter • 1984 • The Hobbit</p>
+                                            <p>🎓 <span className="text-white/80">Topics:</span> How do black holes work? • Explain quantum physics</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Dialogue Box - Below Image */}
+{displayLines.length > 0 && !isLoading && (
+    <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-5 border border-white/10 max-h-48 overflow-y-auto">
+        <div className="space-y-3">
+            {displayLines.map((line, idx) => {
+                // Alternate alignment based on speaker index
+                const isEven = line.speakerIndex !== undefined ? line.speakerIndex % 2 === 0 : idx % 2 === 0;
+                const alignment = isEven ? 'text-left' : 'text-right';
+
+                // Use the line color directly (no conversion needed)
+                const textColor = line.color;
+
+                return (
+                    <div key={idx} className={alignment}>
+                        <p
+                            className="inline-block text-base leading-relaxed whitespace-pre-wrap px-4 py-2 rounded-xl backdrop-blur-sm"
+                            style={{
+                                color: textColor,
+                                backgroundColor: isEven ? 'rgba(139, 92, 246, 0.15)' : 'rgba(94, 234, 212, 0.15)'
+                            }}
+                        >
+                            {line.speakerName && <strong className="opacity-90">{line.speakerName}: </strong>}
+                            {line.text}
+                        </p>
+                    </div>
+                );
+            })}
+        </div>
+    </div>
+)}
+                    </div>
+
+                    {/* Right: Choices */}
+                    {choices.length > 0 && !isLoading && (
+                        <div className="w-80 flex flex-col gap-3 justify-center">
+                            {choices.map((choice, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleChoiceClick(choice)}
+                                    className="cursor-pointer px-6 py-4 bg-gradient-to-r from-purple-600/70 to-pink-600/70 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] backdrop-blur-sm border border-white/20 text-left"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">✨</span>
+                                        <span>{choice}</span>
+                                    </div>
+                                </button>
+                            ))}
                         </div>
                     )}
 
                 </div>
             </div>
 
-            {/* Choice Buttons */}
-            {choices.length > 0 && !isLoading && (
-                <div className="w-full max-w-5xl mt-6 flex gap-4 justify-center flex-wrap">
-                    {choices.map((choice, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleChoiceClick(choice)}
-                            className="cursor-pointer px-6 py-4 bg-gradient-to-r from-purple-600/80 to-pink-600/80 hover:from-purple-500 hover:to-pink-500 rounded-2xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] backdrop-blur-sm border border-white/20 min-w-[200px]"
-                        >
-                            {choice}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            {/* Voice Input Button */}
-            <div className="mt-8 relative">
+            {/* Voice Input Button - Bottom Center */}
+            <div className="pb-8 flex justify-center relative">
                 <RecordButton onStop={handleAudioStop} disabled={isLoading} />
-                <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-white/40 whitespace-nowrap">
+                <p className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-xs text-white/40 whitespace-nowrap">
                     {isFirstLoad ? '🎙️ Say a book or topic to begin' : '🎙️ Or speak your choice'}
                 </p>
             </div>

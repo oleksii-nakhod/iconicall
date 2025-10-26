@@ -443,7 +443,7 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
                 const idx = m ? Number(m[1]) : -1;
                 const text = m ? m[2] : l;
                 const name = idx >= 0 ? (speakerNames[idx] || `Speaker ${idx}`) : '';
-                const color = idx >= 0 ? `hsl(${(idx * 137) % 360} 70% 45%)` : `hsl(0 0% 20%)`;
+                const color = idx >= 0 ? `hsl(${idx % 2 === 0 ? 270 : 180} 60% 75%)` : `hsl(0 0% 90%)`;
                 return { speakerIndex: idx, speakerName: name, text, color };
             });
         const displayTranscript = sceneLines
