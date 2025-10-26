@@ -10,7 +10,17 @@ type Message = {
 type StoryState = {
     book_title?: string;
     narrator_name?: string;
+    narrators?: string[];
     content_type?: string;
+    plot_summary?: string;
+    current_chapter?: string;
+};
+
+type SceneLine = {
+    speakerIndex?: number;
+    speakerName?: string;
+    text: string;
+    color: string;
 };
 
 export default function Home() {
@@ -27,11 +37,13 @@ export default function Home() {
     const [choices, setChoices] = useState<string[]>([]);
     const [loadingProgress, setLoadingProgress] = useState<string>('');
     const [isFirstLoad, setIsFirstLoad] = useState(true);
-    const [performanceData, setPerformanceData] = useState<any>(null);
+    const [performanceData, setPerformanceData] = useState<{
+        total_ms: number;
+        breakdown: Record<string, number>;
+    } | null>(null);
 
-    // below other useState hooks
-    const [sceneLines, setSceneLines] = useState<Array<{ speakerName?: string; text: string; color: string }>>([]);
-
+    // Scene lines with proper typing
+    const [sceneLines, setSceneLines] = useState<SceneLine[]>([]);
 
     const audioPlayer = useRef<HTMLAudioElement | null>(null);
 
@@ -54,6 +66,7 @@ export default function Home() {
         setLoadingProgress('');
         setIsFirstLoad(true);
         setPerformanceData(null);
+        setSceneLines([]);
         setIsLoading(false);
     };
 
@@ -107,13 +120,18 @@ export default function Home() {
                     return;
                 }
 
-                if (data.narrator_names) setNarratorName(data.narrator_names.join(' & '));
-                setSceneLines(data.scene_lines || []);
+                // Handle multi-narrator names
+                if (data.narrators && Array.isArray(data.narrators)) {
+                    setNarratorName(data.narrators.join(' & '));
+                } else if (data.narrator_name) {
+                    setNarratorName(data.narrator_name);
+                }
 
+                // Set scene lines with proper typing
+                setSceneLines(data.scene_lines || []);
 
                 // Update story state
                 if (data.book_title) setBookTitle(data.book_title);
-                if (data.narrator_name) setNarratorName(data.narrator_name);
                 if (data.current_chapter) setCurrentChapter(data.current_chapter);
                 setStoryState(data.story_state);
                 setConversation(data.conversation_history);
@@ -183,9 +201,14 @@ export default function Home() {
                 return;
             }
 
-            if (data.narrator_names) setNarratorName(data.narrator_names.join(' & '));
-            setSceneLines(data.scene_lines || []);
+            // Handle multi-narrator names
+            if (data.narrators && Array.isArray(data.narrators)) {
+                setNarratorName(data.narrators.join(' & '));
+            } else if (data.narrator_name) {
+                setNarratorName(data.narrator_name);
+            }
 
+            setSceneLines(data.scene_lines || []);
 
             setStoryState(data.story_state);
             setConversation(data.conversation_history);
@@ -217,6 +240,24 @@ export default function Home() {
     };
 
     const fallbackImage = 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1200';
+
+    // Helper function to get display lines with proper typing
+    const getDisplayLines = (): SceneLine[] => {
+        if (sceneLines.length > 0) {
+            return sceneLines;
+        }
+        if (currentScene) {
+            return currentScene.trim().split(/\n+/).map(text => ({
+                text,
+                color: 'hsl(0 0% 100%)',
+                speakerName: undefined,
+                speakerIndex: undefined
+            }));
+        }
+        return [];
+    };
+
+    const displayLines = getDisplayLines();
 
     return (
         <main className="h-screen w-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#0A0A0F] via-[#1A0F2A] to-[#0F061A] relative overflow-hidden">
@@ -305,16 +346,17 @@ export default function Home() {
                     )}
 
                     {/* Current Scene Text */}
-                    {(sceneLines.length > 0 || currentScene) && !isLoading && (
+                    {displayLines.length > 0 && !isLoading && (
                         <div className="mt-auto bg-black/70 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
                             <div className="space-y-2">
-                                {(sceneLines.length > 0 ? sceneLines : currentScene.trim().split(/\n+/).map(t => ({ text: t, color: 'hsl(0 0% 100%)' }))).map((l, idx) => (
+                                {displayLines.map((line, idx) => (
                                     <p
                                         key={idx}
                                         className="text-lg leading-relaxed whitespace-pre-wrap"
-                                        style={{ color: l.color }}
+                                        style={{ color: line.color }}
                                     >
-                                        {l.speakerName ? <strong>{l.speakerName}: </strong> : null}{l.text}
+                                        {line.speakerName && <strong>{line.speakerName}: </strong>}
+                                        {line.text}
                                     </p>
                                 ))}
                             </div>

@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
         // --------------------------------------------------
         console.log('\n🎯 === PERFORMANCE TRACKING START ===');
         let stepStartTime = performance.now();
-
+        
         let userInput: string;
         if (text_input) {
             userInput = text_input;
@@ -400,7 +400,7 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
         });
 
         const scriptData = JSON.parse(scriptResponse.output_text);
-
+        
         timings['2_llm_script_generation'] = performance.now() - stepStartTime;
         console.log(`⏱️  STEP 2 - LLM Script Generation: ${timings['2_llm_script_generation'].toFixed(2)}ms (${(timings['2_llm_script_generation']/1000).toFixed(2)}s)`);
 
@@ -408,7 +408,7 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
         // STEP 3: Load Reference Files (Multi-Speaker Support)
         // --------------------------------------------------
         stepStartTime = performance.now();
-
+        
         const contentType = isFirstInteraction ? scriptData.content_type : story_state.content_type;
 
         // Multi-speaker support: handle both single narrator and narrator array
@@ -454,22 +454,22 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
         const refBundles = await Promise.all(matchedNarrators.map(async (n, i) => {
             const audioPath = path.join(process.cwd(), n.ref_audio);
             const transcriptPath = path.join(process.cwd(), n.ref_transcript);
-
+            
             if (!fs.existsSync(audioPath) || !fs.existsSync(transcriptPath)) {
                 console.error(`Missing reference files for ${n.name}`);
                 throw new Error(`Reference audio/transcript not found for ${n.name}`);
             }
-
+            
             const refAudioBase64 = await fileToBase64(audioPath);
             const refTranscript = (await fsp.readFile(transcriptPath, 'utf-8')).trim();
-
+            
             console.log(`  📁 [SPEAKER${i}] ${n.name} → audio: ${n.ref_audio} | transcript: ${n.ref_transcript}`);
             console.log(`     🎵 Audio size: ${refAudioBase64.length} chars`);
             console.log(`     📝 Transcript preview: "${refTranscript.substring(0, 50)}..."`);
-
+            
             return { index: i, narrator: n, refAudioBase64, refTranscript };
         }));
-
+        
         timings['3_load_reference_files'] = performance.now() - stepStartTime;
         console.log(`⏱️  STEP 3 - Load Reference Files: ${timings['3_load_reference_files'].toFixed(2)}ms (${(timings['3_load_reference_files'] / 1000).toFixed(2)}s)`);
 
@@ -483,7 +483,7 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
         const imagePromise = (async () => {
             const imageStartTime = performance.now();
             try {
-                const imageStyle = contentType === 'learning'
+                const imageStyle = contentType === 'learning' 
                     ? 'Educational illustration, clear diagram, engaging visual metaphor, detailed digital art'
                     : 'Cinematic book illustration, detailed digital art, atmospheric lighting, wide establishing shot';
 
@@ -506,10 +506,10 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
                     size: '1024x1024',
                     quality: 'low'
                 });
-
+                
                 const imageTime = performance.now() - imageStartTime;
                 console.log(`   ✅ Image generated: ${imageTime.toFixed(2)}ms (${(imageTime/1000).toFixed(2)}s)`);
-
+                
                 return {
                     success: true,
                     data: response,
@@ -520,8 +520,8 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
                 const imageTime = performance.now() - imageStartTime;
                 const errorMessage = err instanceof Error ? err.message : 'Unknown error';
                 console.error(`   ❌ Image generation error (${imageTime.toFixed(2)}ms):`, errorMessage);
-                return {
-                    success: false,
+                return { 
+                    success: false, 
                     error: errorMessage,
                     generationTime: imageTime
                 };
@@ -569,10 +569,10 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
                     stop: ["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
                     extra_body: { top_k: 50 },
                 });
-
+                
                 const audioTime = performance.now() - audioStartTime;
                 console.log(`   ✅ Audio generated: ${audioTime.toFixed(2)}ms (${(audioTime/1000).toFixed(2)}s)`);
-
+                
                 return {
                     success: true,
                     data: response,
@@ -582,8 +582,8 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
                 const audioTime = performance.now() - audioStartTime;
                 const errorMessage = err instanceof Error ? err.message : 'Unknown error';
                 console.error(`   ❌ Audio generation error (${audioTime.toFixed(2)}ms):`, err);
-                return {
-                    success: false,
+                return { 
+                    success: false, 
                     error: errorMessage,
                     generationTime: audioTime
                 };
@@ -598,7 +598,7 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
         timings['4_parallel_generation_total'] = performance.now() - parallelStartTime;
         timings['4a_image_generation'] = imageResult.generationTime || 0;
         timings['4b_audio_generation'] = audioResult.generationTime || 0;
-
+        
         console.log(`⏱️  STEP 4 - Parallel Generation (Total): ${timings['4_parallel_generation_total'].toFixed(2)}ms (${(timings['4_parallel_generation_total']/1000).toFixed(2)}s)`);
         console.log(`   📸 Image only: ${timings['4a_image_generation'].toFixed(2)}ms (${(timings['4a_image_generation']/1000).toFixed(2)}s)`);
         console.log(`   🎵 Audio only: ${timings['4b_audio_generation'].toFixed(2)}ms (${(timings['4b_audio_generation']/1000).toFixed(2)}s)`);
