@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { RecordButton } from '@/components/RecordButton';
 
 type Message = {
@@ -10,6 +10,7 @@ type Message = {
 type StoryState = {
     book_title?: string;
     narrator_name?: string;
+    content_type?: string;
 };
 
 export default function Home() {
@@ -45,7 +46,7 @@ export default function Home() {
             const format = mime.split('/')[1];
 
             try {
-                setLoadingProgress(isFirstLoad ? '📚 Finding your book...' : '🎨 Creating scene...');
+                setLoadingProgress(isFirstLoad ? '🔍 Understanding your request...' : '🎨 Creating scene...');
                 
                 const startTime = Date.now();
                 const res = await fetch('/api/chat', {
@@ -128,7 +129,7 @@ export default function Home() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    text_input: choice, // Send as text_input instead of audio_base64
+                    text_input: choice,
                     conversation_history: conversation,
                     story_state: storyState,
                 }),
@@ -194,10 +195,10 @@ export default function Home() {
             {bookTitle && (
                 <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 text-center">
                     <h1 className="text-3xl font-bold text-white/90 tracking-wide">
-                        📖 {bookTitle}
+                        {storyState.content_type === 'learning' ? '🎓' : '📖'} {bookTitle}
                     </h1>
                     <p className="text-sm text-white/50 mt-1">
-                        Narrated by {narratorName}
+                        {storyState.content_type === 'learning' ? 'Explained by' : 'Narrated by'} {narratorName}
                     </p>
                     {currentChapter && (
                         <p className="text-xs text-white/40 mt-1 italic">
@@ -245,14 +246,15 @@ export default function Home() {
                         <div className="absolute inset-0 flex items-center justify-center text-center">
                             <div className="bg-black/60 backdrop-blur-xl rounded-3xl p-12 max-w-2xl border border-white/20">
                                 <h2 className="text-4xl font-bold text-white mb-4">
-                                    📚 Live the Book
+                                    🎭 Learn Anything, Live Any Story
                                 </h2>
                                 <p className="text-xl text-white/80 mb-6">
-                                    Speak the name of any book and step into its story.
+                                    Speak a book title to experience its story, or ask about any topic to learn from an expert.
                                 </p>
-                                <p className="text-white/60">
-                                    You'll make choices that shape the adventure as scenes come to life before your eyes.
-                                </p>
+                                <div className="text-white/60 space-y-2">
+                                    <p>📚 <span className="text-white/80">Books:</span> "Harry Potter" • "1984" • "The Hobbit"</p>
+                                    <p>🎓 <span className="text-white/80">Topics:</span> "How do black holes work?" • "Explain quantum physics" • "What is photosynthesis?"</p>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -287,7 +289,7 @@ export default function Home() {
             <div className="mt-8 relative">
                 <RecordButton onStop={handleAudioStop} disabled={isLoading} />
                 <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs text-white/40 whitespace-nowrap">
-                    {isFirstLoad ? '🎙️ Tell a book title to begin' : '🎙️ Or speak your choice'}
+                    {isFirstLoad ? '🎙️ Say a book or topic to begin' : '🎙️ Or speak your choice'}
                 </p>
             </div>
 

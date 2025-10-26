@@ -16,6 +16,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/einstein.mp3',
         ref_transcript: 'public/ref-audio/einstein.txt',
         personality: 'Playful genius who uses thought experiments and loves making complex ideas click with "aha!" moments',
+        expertise: ['Physics', 'Mathematics', 'Philosophy', 'Science']
     },
     'dipper_pines': {
         name: 'Dipper Pines',
@@ -23,6 +24,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/dipper.mp3',
         ref_transcript: 'public/ref-audio/dipper.txt',
         personality: 'Enthusiastic nerd energy, references mysteries and makes everything an adventure',
+        expertise: ['Mystery', 'Adventure', 'Puzzles', 'Cryptography']
     },
     'david_attenborough': {
         name: 'David Attenborough',
@@ -30,6 +32,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/attenborough.mp3',
         ref_transcript: 'public/ref-audio/attenborough.txt',
         personality: 'Calm, wise, and deeply reverent toward nature; narrates with wonder, empathy, and quiet enthusiasm for the natural world',
+        expertise: ['Nature', 'Biology', 'Ecology', 'Animals', 'Environment']
     },
     'stephen_hawking': {
         name: 'Stephen Hawking',
@@ -37,6 +40,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/hawking.mp3',
         ref_transcript: 'public/ref-audio/hawking.txt',
         personality: 'Dry humor and cosmic curiosity, explains the mysteries of the universe with clarity, patience, and a touch of wit',
+        expertise: ['Cosmology', 'Black Holes', 'Space', 'Quantum Physics', 'Universe']
     },
     'kung_fu_panda': {
         name: 'Po',
@@ -44,6 +48,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/kungfupanda.mp3',
         ref_transcript: 'public/ref-audio/kungfupanda.txt',
         personality: 'Goofy but determined, blends humor, humility, and bursts of kung fu wisdom; always believes anyone can be a hero',
+        expertise: ['Martial Arts', 'Self-belief', 'Perseverance', 'Eastern Philosophy']
     },
     'martin_luther': {
         name: 'Martin Luther',
@@ -51,6 +56,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/martinluther.mp3',
         ref_transcript: 'public/ref-audio/martinluther.txt',
         personality: 'Passionate reformer with conviction and moral fire, speaks boldly about truth, faith, and challenging authority',
+        expertise: ['Theology', 'History', 'Social Justice', 'Reform', 'Ethics']
     },
     'j_robert_oppenheimer': {
         name: 'Oppenheimer',
@@ -58,6 +64,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/oppenheimer.mp3',
         ref_transcript: 'public/ref-audio/oppenheimer.txt',
         personality: 'Intense and introspective visionary, balances scientific brilliance with moral reflection and haunting eloquence',
+        expertise: ['Nuclear Physics', 'Ethics', 'History', 'Science', 'Philosophy']
     },
     'spongebob_squarepants': {
         name: 'SpongeBob SquarePants',
@@ -65,6 +72,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/spongebob.mp3',
         ref_transcript: 'public/ref-audio/spongebob.txt',
         personality: 'Boundless enthusiasm and childlike wonder; turns every task into a fun adventure with positivity and laughter',
+        expertise: ['Fun Learning', 'Creativity', 'Friendship', 'Ocean Life', 'Comedy']
     },
     'cher': {
         name: 'Cher',
@@ -72,6 +80,7 @@ const narrators = {
         ref_audio: 'public/ref-audio/cher.mp3',
         ref_transcript: 'public/ref-audio/cher.txt',
         personality: 'Mature, confident, and self-assured; speaks with poise and a touch of dry humor, carrying the presence of someone who\'s seen it all and owns every moment.',
+        expertise: ['Music', 'Fashion', 'Pop Culture', 'Entertainment', 'Style']
     }
 };
 
@@ -103,15 +112,12 @@ export async function POST(req: NextRequest) {
         let stepStartTime = performance.now();
         
         let userInput: string;
-
         if (text_input) {
-            // Text choice was provided directly
             userInput = text_input;
             timings['1_speech_to_text'] = 0;
             console.log(`⏱️  STEP 1 - Text Input (skipped STT): 0ms`);
             console.log(`📝 User Input (text): "${userInput}"`);
         } else {
-            // Audio was provided, transcribe it
             const audioBuffer = Buffer.from(audio_base64, "base64");
             const tempPath = path.join("/tmp", `audio_${Date.now()}.${audio_format || "webm"}`);
             await fs.promises.writeFile(tempPath, audioBuffer);
@@ -138,59 +144,109 @@ export async function POST(req: NextRequest) {
         const isFirstInteraction = !story_state || !story_state.book_title;
 
         // --------------------------------------------------
-        // STEP 2: Generate Story Script with Plot Tracking
+        // STEP 2: Generate Content (Story OR Learning)
         // --------------------------------------------------
         stepStartTime = performance.now();
         
         let scriptPrompt: string;
-
+        
         if (isFirstInteraction) {
-            scriptPrompt = `You are an AI storyteller bringing books to life through interactive narration.
+            // Determine if this is a book request or a learning topic
+            scriptPrompt = `You are an AI that creates interactive experiences - either bringing books to life OR teaching topics through engaging narration.
 
 User said: "${userInput}"
 
-Extract the book title and create the opening scene that STAYS TRUE TO THE ORIGINAL STORY.
+Available Narrators (USE EXACT NAMES):
+${Object.values(narrators).map(n => `- "${n.name}": ${n.description} (Expertise: ${n.expertise.join(', ')})`).join('\n')}
 
-Available Narrators:
-${Object.values(narrators).map(n => `- ${n.name}: ${n.description}`).join('\n')}
+TASK: Determine if this is a BOOK REQUEST or a LEARNING TOPIC REQUEST.
 
-Generate the opening:
-1. Identify the book and choose the best narrator for its genre
-2. Start at the CANONICAL BEGINNING of this story (where the book actually starts)
-3. Introduce the main character and setting authentically
-4. Present 2-3 choices that align with major plot points from the actual book
-5. Include a brief plot summary for tracking
+IF BOOK (e.g., "Harry Potter", "The Great Gatsby"):
+- Extract the book title
+- Choose narrator that fits the book's genre
+- Start at the CANONICAL BEGINNING of the story
+- Create opening scene with 2-3 choices aligned with plot points
+
+IF LEARNING TOPIC (e.g., "quantum physics", "how black holes work", "photosynthesis"):
+- Identify the topic
+- Choose the expert narrator most qualified for this subject
+- Create an engaging introduction to the topic
+- Provide 2-3 choices for learning directions (deeper dive, related topic, practical example)
 
 Return JSON:
 {
-  "narrator_name": "exact name from list",
-  "book_title": "cleaned book title",
-  "plot_summary": "2-3 sentence summary of the actual book's plot for continuity tracking",
-  "current_chapter": "Opening scene/chapter description",
-  "scene_text": "immersive opening narration (2-3 sentences) ending with choice prompt",
-  "choices": ["Choice that leads to plot point A", "Choice that leads to plot point B", "Choice that leads to plot point C"],
+  "content_type": "book" or "learning",
+  "narrator_name": "EXACT NAME from the list above (copy it exactly with correct capitalization)",
+  "book_title": "book title" OR "Learning: [Topic Name]",
+  "plot_summary": "brief summary of book plot OR key concepts to cover in this topic",
+  "current_chapter": "chapter name OR topic section (e.g., 'Introduction to Quantum Physics')",
+  "scene_text": "immersive narration (2-3 sentences) ending with a prompt for choices",
+  "choices": ["Choice 1", "Choice 2", "Choice 3"],
   "scene_image": {
-    "description": "detailed scene description matching the book's actual opening",
+    "description": "detailed scene description",
     "duration": 8.0
   }
 }
 
-IMPORTANT: Stay true to the source material. If it's Harry Potter, start at Privet Drive. If it's Lord of the Rings, start in the Shire. Match the book's tone and setting.
+CRITICAL: The narrator_name field MUST be copied EXACTLY from the list above. For example:
+- "Stephen Hawking" (correct)
+- "stephen hawking" (WRONG - incorrect capitalization)
+- "Albert Einstein" (correct)
+- "Einstein" (WRONG - incomplete name)
 
-Scene image requirements:
-- WIDE CINEMATIC SHOT showing the iconic opening scene
-- Match the book's visual descriptions and atmosphere
-- Include key characters or locations from the actual story
-- Style: "cinematic book illustration, detailed digital art, atmospheric lighting, wide establishing shot"
+IMPORTANT: 
+- For books: Stay true to source material
+- For learning: Make it engaging, use analogies, relate to real life
+- Match narrator personality to content
+- Keep explanations clear and fun
+
+Image requirements:
+- Books: Cinematic illustration of the scene
+- Learning: Visual representation of the concept (diagrams, illustrations, metaphors)
+- Style: "educational illustration, detailed, engaging, clear" for learning OR "cinematic book illustration" for stories
 - Keep under 150 characters`;
         } else {
             const recentHistory = (conversation_history || []).slice(-4).map((m: any) =>
                 `${m.role === 'user' ? '👤 User' : '📖 Narrator'}: ${m.content}`
             ).join('\n');
+            
+            const contentType = story_state.content_type || 'book';
+            
+            if (contentType === 'learning') {
+                scriptPrompt = `You are continuing an interactive LEARNING experience about "${story_state.book_title}".
 
-            scriptPrompt = `You are continuing an interactive story that MUST stay true to the original book's plot.
+Key Concepts: ${story_state.plot_summary || 'Educational content'}
+Current Section: ${story_state.current_chapter || 'Introduction'}
+Expert: ${story_state.narrator_name}
 
-Book: "${story_state.book_title}"
+Recent Conversation:
+${recentHistory}
+
+User's Choice: "${userInput}"
+
+Continue the learning experience:
+1. Acknowledge their choice
+2. Explain the concept clearly using analogies and examples
+3. Build on previous knowledge
+4. Provide 2-3 new choices (deeper dive, new angle, related topic)
+5. Keep it engaging and interactive
+
+Return JSON:
+{
+  "current_chapter": "Updated section/concept description",
+  "scene_text": "clear, engaging explanation (2-3 sentences) with choice prompt",
+  "choices": ["Learn more about X", "How does this relate to Y?", "Show me a real example"],
+  "scene_image": {
+    "description": "visual representation of this concept",
+    "duration": 8.0
+  }
+}
+
+Image: Educational illustration showing the concept clearly
+Style: "educational diagram, clear illustration, engaging visual metaphor"`;
+            } else {
+                scriptPrompt = `You are continuing an interactive STORY from "${story_state.book_title}".
+
 Plot Summary: ${story_state.plot_summary || 'Follow the canonical story'}
 Current Chapter: ${story_state.current_chapter || 'Early story'}
 Narrator: ${story_state.narrator_name}
@@ -218,14 +274,9 @@ Return JSON:
   }
 }
 
-CRITICAL: Guide the user through the actual book's story arc. If they choose something off-track, gently redirect them back to the main plot while acknowledging their choice.
-
-Scene image requirements:
-- WIDE CINEMATIC SHOT of this specific moment
-- Show character actions and environment from THIS scene
-- Match the book's tone and visual style
-- Style: "cinematic book illustration, detailed digital art, atmospheric lighting, wide shot"
-- Keep under 150 characters`;
+Image: Wide cinematic shot of this scene
+Style: "cinematic book illustration, detailed digital art, atmospheric lighting"`;
+            }
         }
 
         const scriptResponse = await openai.responses.create({
@@ -233,10 +284,11 @@ Scene image requirements:
             input: scriptPrompt,
             text: {
                 format: {
-                    name: 'generate_story_scene',
+                    name: 'generate_interactive_content',
                     schema: isFirstInteraction ? {
                         type: 'object',
                         properties: {
+                            content_type: { type: 'string', enum: ['book', 'learning'] },
                             narrator_name: { type: 'string' },
                             book_title: { type: 'string' },
                             plot_summary: { type: 'string' },
@@ -257,7 +309,7 @@ Scene image requirements:
                             }
                         },
                         additionalProperties: false,
-                        required: ['narrator_name', 'book_title', 'plot_summary', 'current_chapter', 'scene_text', 'choices', 'scene_image'],
+                        required: ['content_type', 'narrator_name', 'book_title', 'plot_summary', 'current_chapter', 'scene_text', 'choices', 'scene_image'],
                     } : {
                         type: 'object',
                         properties: {
@@ -299,12 +351,33 @@ Scene image requirements:
         const bookTitle = isFirstInteraction ? scriptData.book_title : story_state.book_title;
         const plotSummary = isFirstInteraction ? scriptData.plot_summary : story_state.plot_summary;
         const currentChapter = scriptData.current_chapter;
-        const narrator = Object.values(narrators).find(n => n.name === narratorName) || narrators['david_attenborough'];
+        const contentType = isFirstInteraction ? scriptData.content_type : story_state.content_type;
+        
+        // Robust narrator matching - case insensitive and handles variations
+        let narrator = Object.values(narrators).find(n => 
+            n.name.toLowerCase() === narratorName.toLowerCase()
+        );
+        
+        // If not found, try partial match
+        if (!narrator) {
+            narrator = Object.values(narrators).find(n => 
+                n.name.toLowerCase().includes(narratorName.toLowerCase()) ||
+                narratorName.toLowerCase().includes(n.name.toLowerCase())
+            );
+        }
+        
+        // Final fallback
+        if (!narrator) {
+            console.warn(`⚠️  Narrator "${narratorName}" not found, falling back to David Attenborough`);
+            narrator = narrators['david_attenborough'];
+        }
+        
+        console.log(`🔍 Requested narrator: "${narratorName}" → Matched: "${narrator.name}"`);
 
-        console.log(`📚 Book: "${bookTitle}"`);
-        console.log(`📖 Chapter: "${currentChapter}"`);
+        console.log(`${contentType === 'learning' ? '🎓' : '📚'} ${contentType === 'learning' ? 'Topic' : 'Book'}: "${bookTitle}"`);
+        console.log(`📖 Section: "${currentChapter}"`);
         console.log(`🎙️  Narrator: ${narrator.name}`);
-        console.log(`💬 Scene: "${scriptData.scene_text}"`);
+        console.log(`💬 Content: "${scriptData.scene_text}"`);
 
         const audioPath = path.join(process.cwd(), narrator.ref_audio);
         const transcriptPath = path.join(process.cwd(), narrator.ref_transcript);
@@ -321,6 +394,10 @@ Scene image requirements:
         
         timings['3_load_reference_files'] = performance.now() - stepStartTime;
         console.log(`⏱️  STEP 3 - Load Reference Files: ${timings['3_load_reference_files'].toFixed(2)}ms (${(timings['3_load_reference_files']/1000).toFixed(2)}s)`);
+        console.log(`   📁 Audio file: ${narrator.ref_audio}`);
+        console.log(`   📄 Transcript file: ${narrator.ref_transcript}`);
+        console.log(`   🎵 Audio size: ${refAudioBase64.length} chars`);
+        console.log(`   📝 Transcript preview: "${refTranscript.substring(0, 50)}..."`);
 
         // --------------------------------------------------
         // STEP 4: Parallel Generation (Image + Audio)
@@ -328,26 +405,29 @@ Scene image requirements:
         const parallelStartTime = performance.now();
         console.log('\n🚀 Starting parallel generation (Image + Audio)...');
 
-        // Image generation with internal timing
+        // Image generation
         const imagePromise = (async () => {
             const imageStartTime = performance.now();
             try {
+                const imageStyle = contentType === 'learning' 
+                    ? 'Educational illustration, clear diagram, engaging visual metaphor, detailed digital art'
+                    : 'Cinematic book illustration, detailed digital art, atmospheric lighting, wide establishing shot';
+
                 const response = await openai.images.generate({
                     model: process.env.TTI_MODEL || 'dall-e-3',
-                    prompt: `Professional cinematic book illustration.
+                    prompt: `Professional ${contentType === 'learning' ? 'educational' : 'cinematic'} illustration.
 
 Scene: ${scriptData.scene_image.description}
 
 Visual Style:
-- Art: Detailed digital illustration, cinematic storytelling style
-- Composition: Wide establishing shot showing full scene and environment
-- Lighting: Dramatic, atmospheric, mood-appropriate
-- Quality: Rich colors, immersive book illustration quality
-- Characters: Recognizable from the story, emotionally expressive
+- Art: ${imageStyle}
+- Composition: ${contentType === 'learning' ? 'Clear, informative visual showing the concept' : 'Wide shot showing full scene'}
+- Lighting: ${contentType === 'learning' ? 'Clear, bright, easy to understand' : 'Dramatic, atmospheric, mood-appropriate'}
+- Quality: Rich colors, ${contentType === 'learning' ? 'educational clarity' : 'immersive storytelling'}
 
-Book: "${bookTitle}"
-Chapter: ${currentChapter}
-Mood: Engaging, authentic to the source material, immersive.`,
+${contentType === 'learning' ? 'Topic' : 'Book'}: "${bookTitle}"
+Section: ${currentChapter}
+Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic to source material, immersive'}.`,
                     n: 1,
                     size: '1024x1024',
                     quality: 'low'
@@ -373,7 +453,7 @@ Mood: Engaging, authentic to the source material, immersive.`,
             }
         })();
 
-        // Audio generation with internal timing
+        // Audio generation
         const audioGenPromise = (async () => {
             const audioStartTime = performance.now();
             try {
@@ -454,14 +534,12 @@ Mood: Engaging, authentic to the source material, immersive.`,
         if (imageResult.success && 'data' in imageResult) {
             if (imageResult.data?.data?.[0]) {
                 imageBase64 = imageResult.data.data[0].b64_json || null;
-
                 if (!imageBase64 && imageResult.data.data[0].url) {
                     console.log('   🔄 Fetching image from URL...');
                     const urlFetchStart = performance.now();
                     imageBase64 = await fetchImageAsBase64(imageResult.data.data[0].url);
                     console.log(`   ✅ URL fetch: ${(performance.now() - urlFetchStart).toFixed(2)}ms`);
                 }
-
                 imageDuration = imageResult.duration || 8.0;
                 console.log(`   ✅ Image base64 extracted, length: ${imageBase64?.length} chars`);
             }
@@ -515,12 +593,12 @@ Mood: Engaging, authentic to the source material, immersive.`,
             },
             conversation_history: newHistory,
             story_state: {
+                content_type: contentType,
                 book_title: bookTitle,
                 narrator_name: narrator.name,
                 plot_summary: plotSummary,
                 current_chapter: currentChapter,
             },
-            // Include timing data for frontend display
             performance: {
                 total_ms: totalTime,
                 breakdown: timings
