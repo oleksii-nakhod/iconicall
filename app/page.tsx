@@ -29,6 +29,10 @@ export default function Home() {
     const [isFirstLoad, setIsFirstLoad] = useState(true);
     const [performanceData, setPerformanceData] = useState<any>(null);
 
+    // below other useState hooks
+    const [sceneLines, setSceneLines] = useState<Array<{ speakerName?: string; text: string; color: string }>>([]);
+
+
     const audioPlayer = useRef<HTMLAudioElement | null>(null);
 
     const handleAudioStop = async (audioBlob: Blob) => {
@@ -80,6 +84,10 @@ export default function Home() {
                     setLoadingProgress('');
                     return;
                 }
+
+                if (data.narrator_names) setNarratorName(data.narrator_names.join(' & '));
+                setSceneLines(data.scene_lines || []);
+
 
                 // Update story state
                 if (data.book_title) setBookTitle(data.book_title);
@@ -153,6 +161,10 @@ export default function Home() {
                 setLoadingProgress('');
                 return;
             }
+
+            if (data.narrator_names) setNarratorName(data.narrator_names.join(' & '));
+            setSceneLines(data.scene_lines || []);
+
 
             setStoryState(data.story_state);
             setConversation(data.conversation_history);
@@ -260,13 +272,22 @@ export default function Home() {
                     )}
 
                     {/* Current Scene Text */}
-                    {currentScene && !isLoading && (
+                    {(sceneLines.length > 0 || currentScene) && !isLoading && (
                         <div className="mt-auto bg-black/70 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
-                            <p className="text-lg text-white leading-relaxed">
-                                {currentScene}
-                            </p>
+                            <div className="space-y-2">
+                                {(sceneLines.length > 0 ? sceneLines : currentScene.trim().split(/\n+/).map(t => ({ text: t, color: 'hsl(0 0% 100%)' }))).map((l, idx) => (
+                                    <p
+                                        key={idx}
+                                        className="text-lg leading-relaxed whitespace-pre-wrap"
+                                        style={{ color: l.color }}
+                                    >
+                                        {l.speakerName ? <strong>{l.speakerName}: </strong> : null}{l.text}
+                                    </p>
+                                ))}
+                            </div>
                         </div>
                     )}
+
                 </div>
             </div>
 
