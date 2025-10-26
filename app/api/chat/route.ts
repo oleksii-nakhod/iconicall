@@ -84,10 +84,31 @@ const narrators = {
     }
 };
 
+type Narrator = typeof narrators[keyof typeof narrators];
+
+interface SceneLine {
+    speakerIndex: number;
+    speakerName: string;
+    text: string;
+    color: string;
+}
+
 async function fetchImageAsBase64(url: string): Promise<string> {
     const imageRes = await fetch(url);
     const imageBuffer = await imageRes.arrayBuffer();
     return Buffer.from(imageBuffer).toString('base64');
+}
+
+function matchNarratorByName(requested: string): Narrator {
+    let n = Object.values(narrators).find(x => x.name.toLowerCase() === requested.toLowerCase());
+    if (n) return n;
+    n = Object.values(narrators).find(x =>
+        x.name.toLowerCase().includes(requested.toLowerCase()) ||
+        requested.toLowerCase().includes(x.name.toLowerCase())
+    );
+    if (n) return n;
+    console.warn(`⚠️ Narrator "${requested}" not found, falling back to David Attenborough`);
+    return narrators['david_attenborough'];
 }
 
 export async function POST(req: NextRequest) {
@@ -110,7 +131,7 @@ export async function POST(req: NextRequest) {
         // --------------------------------------------------
         console.log('\n🎯 === PERFORMANCE TRACKING START ===');
         let stepStartTime = performance.now();
-        
+
         let userInput: string;
         if (text_input) {
             userInput = text_input;
@@ -121,39 +142,38 @@ export async function POST(req: NextRequest) {
             const audioBuffer = Buffer.from(audio_base64, "base64");
             const tempPath = path.join("/tmp", `audio_${Date.now()}.${audio_format || "webm"}`);
             await fs.promises.writeFile(tempPath, audioBuffer);
-
             const transcription = await openai.audio.transcriptions.create({
                 file: fs.createReadStream(tempPath),
                 model: process.env.STT_MODEL || 'whisper-1',
             });
-
             await fs.promises.unlink(tempPath);
             userInput = transcription.text;
-            
             timings['1_speech_to_text'] = performance.now() - stepStartTime;
-            console.log(`⏱️  STEP 1 - Speech-to-Text: ${timings['1_speech_to_text'].toFixed(2)}ms (${(timings['1_speech_to_text']/1000).toFixed(2)}s)`);
+            console.log(`⏱️  STEP 1 - Speech-to-Text: ${timings['1_speech_to_text'].toFixed(2)}ms (${(timings['1_speech_to_text'] / 1000).toFixed(2)}s)`);
             console.log(`📝 User Input (audio): "${userInput}"`);
         }
 
         if (!userInput || userInput.trim() === '') {
-            return NextResponse.json({
-                error: 'Could not transcribe audio. Please try again.'
-            }, { status: 400 });
+            return NextResponse.json({ error: 'Could not transcribe audio. Please try again.' }, { status: 400 });
         }
 
         const isFirstInteraction = !story_state || !story_state.book_title;
 
-        // --------------------------------------------------
-        // STEP 2: Generate Content (Story OR Learning)
-        // --------------------------------------------------
         stepStartTime = performance.now();
-        
+
         let scriptPrompt: string;
-        
+        const narratorCatalog =
+            Object.values(narrators)
+                .map(n => `- "${n.name}": ${n.description} (Expertise: ${n.expertise.join(', ')})`)
+                .join('\n');
+
         if (isFirstInteraction) {
             scriptPrompt = `You are an AI that creates interactive audio-visual experiences with expert narrators.
 
 User said: "${userInput}"
+
+Available Narrators (USE EXACT NAMES, COPY EXACTLY):
+${narratorCatalog}
 
 Available Narrators (USE EXACT NAMES):
 ${Object.values(narrators).map(n => `- "${n.name}": ${n.description} | Personality: ${n.personality}`).join('\n')}
@@ -162,6 +182,11 @@ YOUR TASK:
 1. Understand what the user wants to experience
 2. Choose the narrator whose personality best fits this experience
 3. Create an engaging introduction with 3 interactive choices
+
+VOICE CASTING:
+- Choose an array "narrators" of 1–3 names (prefer **2** if it makes sense).
+- Each line of dialogue in "scene_text" must be prefixed with [SPEAKER0], [SPEAKER1], ... where index corresponds to the narrator order in the "narrators" array.
+- Keep indices contiguous starting from 0.
 
 EXAMPLES OF WHAT USERS MIGHT REQUEST:
 - Fictional stories ("Harry Potter", "1984")
@@ -181,23 +206,25 @@ NARRATOR SELECTION:
   * Nature → David Attenborough
   * Philosophy/debate → Einstein, Oppenheimer, or Martin Luther
   * Martial arts → Po
-
+  
 Return JSON:
 {
   "content_type": "book" or "learning",
-  "narrator_name": "EXACT NAME from list",
-  "experience_title": "Short descriptive title of this experience",
-  "experience_summary": "Brief overview of what this experience will cover",
-  "current_section": "Current section/chapter/part",
-  "narration": "Engaging narration (2-3 sentences) ending with a prompt for choices",
+  "narrators": ["EXACT NAME 1", "EXACT NAME 2"],
+  "book_title": "Short descriptive title of this experience",
+  "plot_summary": "Brief overview of what this experience will cover",
+  "current_chapter": "Current section/chapter/part",
+  "scene_text": "multi-line text with [SPEAKER0], [SPEAKER1], ... tags",
   "choices": ["Choice 1", "Choice 2", "Choice 3"],
-  "visual": {
+  "scene_image": {
     "description": "Detailed visual description for image generation",
     "duration": 8.0
   }
 }
 
-CRITICAL: narrator_name must be EXACTLY as shown (correct capitalization, full name).
+CRITICAL: 
+- narrators must be EXACTLY as shown (correct capitalization, full name).
+- Every spoken line in "scene_text" must begin with a tag like [SPEAKER0] or [SPEAKER1].
 
 GUIDELINES:
 - For stories: Stay true to source material, start at beginning
@@ -212,19 +239,19 @@ Visual requirements:
 - Scenarios: Match the setting appropriately
 - Keep description under 150 characters`;
         } else {
-            const recentHistory = (conversation_history || []).slice(-4).map((m: any) =>
+            const recentHistory = (conversation_history || []).slice(-4).map((m: { role: string; content: string }) =>
                 `${m.role === 'user' ? '👤 User' : '📖 Narrator'}: ${m.content}`
             ).join('\n');
-            
+
             const contentType = story_state.content_type || 'book';
-            
+
             if (contentType === 'learning') {
                 scriptPrompt = `You are continuing an interactive LEARNING experience.
 
 Topic: "${story_state.book_title}"
 Key Concepts: ${story_state.plot_summary || 'Educational content'}
 Current Section: ${story_state.current_chapter || 'Introduction'}
-Narrator: ${story_state.narrator_name}
+Narrators: ${(story_state.narrators || [story_state.narrator_name]).join(', ')}
 
 Recent Conversation:
 ${recentHistory}
@@ -248,10 +275,14 @@ CHOICE IDEAS (adapt to topic):
 - Understand why it matters
 - Compare different approaches/perspectives
 
+RULES:
+- Maintain multiple voices using [SPEAKER0], [SPEAKER1], ... per the existing order of narrators.
+- 2–6 short lines total.
+
 Return JSON:
 {
   "current_chapter": "Updated section/concept",
-  "scene_text": "engaging explanation (2-3 sentences) in narrator's voice, end with choice prompt",
+  "scene_text": "multi-line with [SPEAKERi] tags",
   "choices": ["Specific choice 1", "Specific choice 2", "Specific choice 3"],
   "scene_image": {
     "description": "clear visual representation of this concept",
@@ -271,12 +302,17 @@ Image: "educational illustration, clear visual, informative and engaging"`;
 
 Plot Summary: ${story_state.plot_summary || 'Follow the canonical story'}
 Current Chapter: ${story_state.current_chapter || 'Early story'}
-Narrator: ${story_state.narrator_name}
+Narrators: ${(story_state.narrators || [story_state.narrator_name]).join(', ')}
 
 Recent Story:
 ${recentHistory}
 
 User's Choice: "${userInput}"
+
+RULES:
+- Use [SPEAKER0], [SPEAKER1], ... tags matching the existing narrator order.
+- 2–6 short lines total.
+- Progress canonically and keep characters/events consistent.
 
 Continue the story while maintaining plot fidelity:
 1. Acknowledge their choice and show the consequence
@@ -287,11 +323,11 @@ Continue the story while maintaining plot fidelity:
 
 Return JSON:
 {
-  "current_chapter": "Updated chapter/section description",
-  "scene_text": "engaging continuation (2-3 sentences) with choice prompt",
-  "choices": ["Choice aligned with plot", "Choice aligned with plot", "Alternative that still serves the story"],
+  "current_chapter": "string",
+  "scene_text": "multi-line with [SPEAKERi] tags",
+  "choices": ["string", "string", "string"],
   "scene_image": {
-    "description": "scene matching this moment in the book's progression",
+    "description": "scene (<=150 chars)",
     "duration": 8.0
   }
 }
@@ -311,7 +347,11 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
                         type: 'object',
                         properties: {
                             content_type: { type: 'string', enum: ['book', 'learning'] },
-                            narrator_name: { type: 'string' },
+                            narrators: {
+                                type: 'array',
+                                items: { type: 'string' },
+                                minItems: 1, maxItems: 3
+                            },
                             book_title: { type: 'string' },
                             plot_summary: { type: 'string' },
                             current_chapter: { type: 'string' },
@@ -331,7 +371,7 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
                             }
                         },
                         additionalProperties: false,
-                        required: ['content_type', 'narrator_name', 'book_title', 'plot_summary', 'current_chapter', 'scene_text', 'choices', 'scene_image'],
+                        required: ['content_type', 'narrators', 'book_title', 'plot_summary', 'current_chapter', 'scene_text', 'choices', 'scene_image'],
                     } : {
                         type: 'object',
                         properties: {
@@ -360,66 +400,78 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
         });
 
         const scriptData = JSON.parse(scriptResponse.output_text);
-        
+
         timings['2_llm_script_generation'] = performance.now() - stepStartTime;
         console.log(`⏱️  STEP 2 - LLM Script Generation: ${timings['2_llm_script_generation'].toFixed(2)}ms (${(timings['2_llm_script_generation']/1000).toFixed(2)}s)`);
 
         // --------------------------------------------------
-        // STEP 3: Load Reference Files
+        // STEP 3: Load Reference Files (Multi-Speaker Support)
         // --------------------------------------------------
         stepStartTime = performance.now();
-        
-        const narratorName = isFirstInteraction ? scriptData.narrator_name : story_state.narrator_name;
+
+        const contentType = isFirstInteraction ? scriptData.content_type : story_state.content_type;
+
+        // Multi-speaker support: handle both single narrator and narrator array
+        const requestedNarrators: string[] = isFirstInteraction
+            ? (Array.isArray(scriptData.narrators) ? scriptData.narrators : [scriptData.narrators])
+            : (story_state.narrators || [story_state.narrator_name]);
+
+        const matchedNarrators = requestedNarrators.map((name, idx) => {
+            const matched = matchNarratorByName(name);
+            if (matched.name !== name) {
+                console.log(`🔍 Requested narrator: "${name}" → Matched: "${matched.name}" (SPEAKER${idx})`);
+            }
+            return matched;
+        });
+
         const bookTitle = isFirstInteraction ? scriptData.book_title : story_state.book_title;
         const plotSummary = isFirstInteraction ? scriptData.plot_summary : story_state.plot_summary;
         const currentChapter = scriptData.current_chapter;
-        const contentType = isFirstInteraction ? scriptData.content_type : story_state.content_type;
-        
-        // Robust narrator matching - case insensitive and handles variations
-        let narrator = Object.values(narrators).find(n => 
-            n.name.toLowerCase() === narratorName.toLowerCase()
-        );
-        
-        // If not found, try partial match
-        if (!narrator) {
-            narrator = Object.values(narrators).find(n => 
-                n.name.toLowerCase().includes(narratorName.toLowerCase()) ||
-                narratorName.toLowerCase().includes(n.name.toLowerCase())
-            );
-        }
-        
-        // Final fallback
-        if (!narrator) {
-            console.warn(`⚠️  Narrator "${narratorName}" not found, falling back to David Attenborough`);
-            narrator = narrators['david_attenborough'];
-        }
-        
-        console.log(`🔍 Requested narrator: "${narratorName}" → Matched: "${narrator.name}"`);
 
         console.log(`${contentType === 'learning' ? '🎓' : '📚'} ${contentType === 'learning' ? 'Topic' : 'Book'}: "${bookTitle}"`);
         console.log(`📖 Section: "${currentChapter}"`);
-        console.log(`🎙️  Narrator: ${narrator.name}`);
-        console.log(`💬 Content: "${scriptData.scene_text}"`);
+        console.log(`🎙️  Narrators (order = SPEAKER index): ${matchedNarrators.map(n => n.name).join(' | ')}`);
+        console.log(`💬 Content:\n${scriptData.scene_text}`);
 
-        const audioPath = path.join(process.cwd(), narrator.ref_audio);
-        const transcriptPath = path.join(process.cwd(), narrator.ref_transcript);
+        // Build a display transcript with speaker names + auto colors
+        const speakerNames = matchedNarrators.map(n => n.name);
+        const sceneLines: SceneLine[] = scriptData.scene_text
+            .trim()
+            .split(/\n+/)
+            .map((l: string) => {
+                const m = l.match(/^\[SPEAKER(\d+)\]\s*(.*)$/);
+                const idx = m ? Number(m[1]) : -1;
+                const text = m ? m[2] : l;
+                const name = idx >= 0 ? (speakerNames[idx] || `Speaker ${idx}`) : '';
+                const color = idx >= 0 ? `hsl(${(idx * 137) % 360} 70% 45%)` : `hsl(0 0% 20%)`;
+                return { speakerIndex: idx, speakerName: name, text, color };
+            });
+        const displayTranscript = sceneLines
+            .map(({ speakerName, text }: SceneLine) => `${speakerName ? speakerName + ': ' : ''}${text}`)
+            .join('\n');
 
-        if (!fs.existsSync(audioPath) || !fs.existsSync(transcriptPath)) {
-            console.error(`Missing reference files for ${narrator.name}`);
-            return NextResponse.json({
-                error: `Reference audio/transcript not found for ${narrator.name}`
-            }, { status: 500 });
-        }
+        // Load reference files for all narrators
+        const refBundles = await Promise.all(matchedNarrators.map(async (n, i) => {
+            const audioPath = path.join(process.cwd(), n.ref_audio);
+            const transcriptPath = path.join(process.cwd(), n.ref_transcript);
 
-        const refAudioBase64 = await fileToBase64(audioPath);
-        const refTranscript = (await fsp.readFile(transcriptPath, 'utf-8')).trim();
-        
+            if (!fs.existsSync(audioPath) || !fs.existsSync(transcriptPath)) {
+                console.error(`Missing reference files for ${n.name}`);
+                throw new Error(`Reference audio/transcript not found for ${n.name}`);
+            }
+
+            const refAudioBase64 = await fileToBase64(audioPath);
+            const refTranscript = (await fsp.readFile(transcriptPath, 'utf-8')).trim();
+
+            console.log(`  📁 [SPEAKER${i}] ${n.name} → audio: ${n.ref_audio} | transcript: ${n.ref_transcript}`);
+            console.log(`     🎵 Audio size: ${refAudioBase64.length} chars`);
+            console.log(`     📝 Transcript preview: "${refTranscript.substring(0, 50)}..."`);
+
+            return { index: i, narrator: n, refAudioBase64, refTranscript };
+        }));
+
         timings['3_load_reference_files'] = performance.now() - stepStartTime;
-        console.log(`⏱️  STEP 3 - Load Reference Files: ${timings['3_load_reference_files'].toFixed(2)}ms (${(timings['3_load_reference_files']/1000).toFixed(2)}s)`);
-        console.log(`   📁 Audio file: ${narrator.ref_audio}`);
-        console.log(`   📄 Transcript file: ${narrator.ref_transcript}`);
-        console.log(`   🎵 Audio size: ${refAudioBase64.length} chars`);
-        console.log(`   📝 Transcript preview: "${refTranscript.substring(0, 50)}..."`);
+        console.log(`⏱️  STEP 3 - Load Reference Files: ${timings['3_load_reference_files'].toFixed(2)}ms (${(timings['3_load_reference_files'] / 1000).toFixed(2)}s)`);
 
         // --------------------------------------------------
         // STEP 4: Parallel Generation (Image + Audio)
@@ -431,7 +483,7 @@ Style: "cinematic book illustration, detailed digital art, atmospheric lighting"
         const imagePromise = (async () => {
             const imageStartTime = performance.now();
             try {
-                const imageStyle = contentType === 'learning' 
+                const imageStyle = contentType === 'learning'
                     ? 'Educational illustration, clear diagram, engaging visual metaphor, detailed digital art'
                     : 'Cinematic book illustration, detailed digital art, atmospheric lighting, wide establishing shot';
 
@@ -454,46 +506,62 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
                     size: '1024x1024',
                     quality: 'low'
                 });
-                
+
                 const imageTime = performance.now() - imageStartTime;
                 console.log(`   ✅ Image generated: ${imageTime.toFixed(2)}ms (${(imageTime/1000).toFixed(2)}s)`);
-                
+
                 return {
                     success: true,
                     data: response,
                     duration: scriptData.scene_image.duration,
                     generationTime: imageTime
                 };
-            } catch (err: any) {
+            } catch (err) {
                 const imageTime = performance.now() - imageStartTime;
-                console.error(`   ❌ Image generation error (${imageTime.toFixed(2)}ms):`, err.message);
-                return { 
-                    success: false, 
-                    error: err.message,
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                console.error(`   ❌ Image generation error (${imageTime.toFixed(2)}ms):`, errorMessage);
+                return {
+                    success: false,
+                    error: errorMessage,
                     generationTime: imageTime
                 };
             }
         })();
 
-        // Audio generation
+        // Audio generation (Multi-Speaker)
         const audioGenPromise = (async () => {
             const audioStartTime = performance.now();
             try {
-                const response = await (boson.chat.completions as any).create({
+                const messages: unknown[] = [
+                    {
+                        role: "system",
+                        content:
+                            "You are a multi-voice TTS composer. The assistant is provided with one input_audio per narrator in order. " +
+                            "When rendering the user's script, use the corresponding cloned voice whenever a line starts with [SPEAKERi]. " +
+                            "Do not output any text; respond with audio only."
+                    }
+                ];
+
+                // Add reference audio for each narrator
+                for (const b of refBundles) {
+                    messages.push({ role: "user", content: b.refTranscript });
+                    messages.push({
+                        role: "assistant",
+                        content: [
+                            {
+                                type: "input_audio",
+                                input_audio: { data: b.refAudioBase64, format: "mp3" },
+                            },
+                        ],
+                    });
+                }
+
+                // Add the actual script to narrate
+                messages.push({ role: "user", content: scriptData.scene_text });
+
+                const response = await (boson.chat.completions as unknown as { create: (params: unknown) => Promise<{ choices: Array<{ message: { audio: { data: string } } }> }> }).create({
                     model: "higgs-audio-generation-Hackathon",
-                    messages: [
-                        { role: "user", content: refTranscript },
-                        {
-                            role: "assistant",
-                            content: [
-                                {
-                                    type: "input_audio",
-                                    input_audio: { data: refAudioBase64, format: "mp3" },
-                                },
-                            ],
-                        },
-                        { role: "user", content: `[SPEAKER0] ${scriptData.scene_text}` },
-                    ],
+                    messages,
                     modalities: ["text", "audio"],
                     max_completion_tokens: 4096,
                     temperature: 1.0,
@@ -501,21 +569,22 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
                     stop: ["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
                     extra_body: { top_k: 50 },
                 });
-                
+
                 const audioTime = performance.now() - audioStartTime;
                 console.log(`   ✅ Audio generated: ${audioTime.toFixed(2)}ms (${(audioTime/1000).toFixed(2)}s)`);
-                
+
                 return {
                     success: true,
                     data: response,
                     generationTime: audioTime
                 };
-            } catch (err: any) {
+            } catch (err) {
                 const audioTime = performance.now() - audioStartTime;
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
                 console.error(`   ❌ Audio generation error (${audioTime.toFixed(2)}ms):`, err);
-                return { 
-                    success: false, 
-                    error: err.message,
+                return {
+                    success: false,
+                    error: errorMessage,
                     generationTime: audioTime
                 };
             }
@@ -529,7 +598,7 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
         timings['4_parallel_generation_total'] = performance.now() - parallelStartTime;
         timings['4a_image_generation'] = imageResult.generationTime || 0;
         timings['4b_audio_generation'] = audioResult.generationTime || 0;
-        
+
         console.log(`⏱️  STEP 4 - Parallel Generation (Total): ${timings['4_parallel_generation_total'].toFixed(2)}ms (${(timings['4_parallel_generation_total']/1000).toFixed(2)}s)`);
         console.log(`   📸 Image only: ${timings['4a_image_generation'].toFixed(2)}ms (${(timings['4a_image_generation']/1000).toFixed(2)}s)`);
         console.log(`   🎵 Audio only: ${timings['4b_audio_generation'].toFixed(2)}ms (${(timings['4b_audio_generation']/1000).toFixed(2)}s)`);
@@ -603,10 +672,12 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
         console.log('='.repeat(50) + '\n');
 
         return NextResponse.json({
-            narrator_name: narrator.name,
+            narrator_name: matchedNarrators[0].name, // Primary narrator for backward compatibility
+            narrators: matchedNarrators.map(n => n.name), // Full narrator list
             book_title: bookTitle,
             current_chapter: currentChapter,
-            scene_text: scriptData.scene_text,
+            scene_text: displayTranscript,
+            scene_lines: sceneLines,
             choices: scriptData.choices,
             audio_base64: generatedAudioBase64,
             scene_image: {
@@ -617,7 +688,8 @@ Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic
             story_state: {
                 content_type: contentType,
                 book_title: bookTitle,
-                narrator_name: narrator.name,
+                narrator_name: matchedNarrators[0].name, // Primary narrator for backward compatibility
+                narrators: matchedNarrators.map(n => n.name), // Full narrator list
                 plot_summary: plotSummary,
                 current_chapter: currentChapter,
             },
