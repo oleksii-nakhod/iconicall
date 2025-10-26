@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "IconiCall",
   description: "Chat with historical and fictional icons using voice!",
+  icons: {
+    icon: '/logo_notext.png',
+  },
 };
 
 export default function RootLayout({

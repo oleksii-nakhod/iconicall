@@ -264,13 +264,22 @@ export default function Home() {
             {/* Magical background orbs */}
             <div className="absolute -top-32 -left-20 w-96 h-96 bg-purple-500 blur-[200px] opacity-20 rounded-full" />
             <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-pink-600 blur-[200px] opacity-20 rounded-full" />
-
-            {/* Restart Button - Top Right */}
+            
+            {/* Logo - Top Right */}
+            <div className="absolute top-8 right-8 z-20">
+                <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="h-16 w-auto object-contain"
+                />
+            </div>
+            
+            {/* Restart Button - Top Right (below logo) */}
             {!isFirstLoad && (
                 <button
                     onClick={handleRestart}
                     disabled={isLoading}
-                    className="absolute top-8 right-8 z-20 px-6 py-3 bg-gradient-to-r from-red-600/80 to-orange-600/80 hover:from-red-500 hover:to-orange-500 rounded-xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(239,68,68,0.6)] backdrop-blur-sm border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="absolute top-28 right-8 z-20 px-6 py-3 bg-gradient-to-r from-red-600/80 to-orange-600/80 hover:from-red-500 hover:to-orange-500 rounded-xl text-white font-medium transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(239,68,68,0.6)] backdrop-blur-sm border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                     <span className="text-xl">🔄</span>
                     <span>New Story</span>

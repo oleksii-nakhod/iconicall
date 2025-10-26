@@ -501,7 +501,8 @@ Visual Style:
 
 ${contentType === 'learning' ? 'Topic' : 'Book'}: "${bookTitle}"
 Section: ${currentChapter}
-Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic to source material, immersive'}.`,
+Mood: Engaging, ${contentType === 'learning' ? 'clear, informative' : 'authentic to source material, immersive'}.,
+CRITICAL: NO TEXT, NO WORDS, NO LETTERS, NO CAPTIONS in the image. Pure visual illustration only.`,
                     n: 1,
                     size: '1024x1024',
                     quality: 'low'
