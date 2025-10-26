@@ -264,13 +264,13 @@ export default function Home() {
             {/* Magical background orbs */}
             <div className="absolute -top-32 -left-20 w-96 h-96 bg-purple-500 blur-[200px] opacity-20 rounded-full" />
             <div className="absolute -bottom-32 -right-16 w-96 h-96 bg-pink-600 blur-[200px] opacity-20 rounded-full" />
-            
+
             {/* Logo - Top Right */}
             <div className="absolute top-8 right-8 z-20">
                 <img 
                     src="/logo.png" 
                     alt="Logo" 
-                    className="h-16 w-auto object-contain"
+                    className="h-20 md:h-28 w-auto object-contain" 
                 />
             </div>
             
