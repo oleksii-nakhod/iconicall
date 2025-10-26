@@ -94,8 +94,8 @@ const narrators = {
     'mcgonagall': {
         name: 'Minerva McGonagall',
         description: 'Strict but fair Deputy Headmistress and Transfiguration professor at Hogwarts, fiercely protective of her students.',
-        ref_audio: 'public/ref-audio/mcgonagall.mp3',
-        ref_transcript: 'public/ref-audio/mcgonagall.txt',
+        ref_audio: 'public/ref-audio/McGonagall.mp3',
+        ref_transcript: 'public/ref-audio/McGonagall.txt',
         personality: 'Disciplined, sharp-witted, and loyal; balances sternness with care and guidance for her students',
         expertise: ['Minerva McGonagall', 'Transfiguration', 'Leadership', 'Discipline', 'Hogwarts']
     },
