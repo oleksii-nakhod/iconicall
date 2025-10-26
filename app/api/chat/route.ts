@@ -81,7 +81,24 @@ const narrators = {
         ref_transcript: 'public/ref-audio/cher.txt',
         personality: 'Mature, confident, and self-assured; speaks with poise and a touch of dry humor, carrying the presence of someone who\'s seen it all and owns every moment.',
         expertise: ['Music', 'Fashion', 'Pop Culture', 'Entertainment', 'Style']
-    }
+    },
+    'dumbledore': {
+        name: 'Albus Dumbledore',
+        description: 'Wise and kind headmaster of Hogwarts, known for his calm demeanor and deep understanding of magic and people.',
+        ref_audio: 'public/ref-audio/dumbledore.mp3',
+        ref_transcript: 'public/ref-audio/dumbledore.txt',
+        personality: 'Calm, thoughtful, and deeply wise; often speaks in riddles and insightful advice, inspiring trust and respect',
+        expertise: ['Albus Dumbledore', 'Wizardry', 'Leadership', 'Wisdom', 'Hogwarts']
+    },
+    
+    'mcgonagall': {
+        name: 'Minerva McGonagall',
+        description: 'Strict but fair Deputy Headmistress and Transfiguration professor at Hogwarts, fiercely protective of her students.',
+        ref_audio: 'public/ref-audio/mcgonagall.mp3',
+        ref_transcript: 'public/ref-audio/mcgonagall.txt',
+        personality: 'Disciplined, sharp-witted, and loyal; balances sternness with care and guidance for her students',
+        expertise: ['Minerva McGonagall', 'Transfiguration', 'Leadership', 'Discipline', 'Hogwarts']
+    },
 };
 
 type Narrator = typeof narrators[keyof typeof narrators];
